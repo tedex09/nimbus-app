@@ -1,0 +1,157 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 15, 14, 26;
+  --background-end-rgb: 15, 14, 26;
+}
+
+@layer base {
+  :root {
+    --background: 240 10% 6%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 6%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 6%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 10% 6%;
+    --secondary: 240 4% 16%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 4% 16%;
+    --muted-foreground: 240 5% 65%;
+    --accent: 240 4% 16%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 4% 16%;
+    --input: 240 4% 16%;
+    --ring: 240 5% 65%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+    --radius: 16px;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-tv-background text-foreground font-medium;
+    font-size: 32px;
+    line-height: 1.4;
+  }
+
+  /* TV-optimized focus styles */
+  *:focus {
+    @apply outline-none;
+  }
+
+  /* Custom focus styles for TV navigation */
+  [data-focus-key]:focus {
+    @apply ring-0 outline-none;
+    border-color: #ffffff !important;
+    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.3);
+    transform: scale(1.05);
+    transition: all 0.2s ease;
+  }
+
+  /* Smooth transitions for all interactive elements */
+  button, [tabindex], [data-focus-key] {
+    transition: all 0.2s ease;
+  }
+
+  /* Hide scrollbars for TV */
+  ::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* Ensure text is always readable */
+  .text-shadow {
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+  }
+}
+
+@layer components {
+  .tv-button {
+    @apply h-16 px-8 rounded-tv text-tv-base font-medium;
+    @apply bg-gray-700 text-white border-2 border-transparent;
+    @apply transition-all duration-200;
+    @apply focus:border-white focus:scale-105;
+    @apply hover:bg-gray-600;
+  }
+
+  .tv-card {
+    @apply w-64 h-56 rounded-tv-lg p-6;
+    @apply bg-gray-800/80 backdrop-blur-sm;
+    @apply border-2 border-transparent;
+    @apply transition-all duration-200;
+    @apply focus:border-white focus:scale-105;
+    @apply cursor-pointer;
+  }
+
+  .tv-input {
+    @apply w-full h-16 px-6 rounded-tv;
+    @apply bg-gray-800 text-white text-tv-base;
+    @apply border-2 border-transparent;
+    @apply transition-all duration-200;
+    @apply focus:border-white focus:ring-0 focus:outline-none;
+  }
+
+  .tv-keyboard-key {
+    @apply h-12 min-w-12 px-4 rounded-md;
+    @apply bg-gray-700 text-white font-medium;
+    @apply border-2 border-transparent;
+    @apply transition-all duration-150;
+    @apply focus:border-white focus:outline-none focus:ring-0;
+    @apply hover:bg-gray-600 active:scale-95;
+  }
+}
+
+/* Ensure proper TV safe areas */
+@media (max-width: 1920px) {
+  .container {
+    padding-left: 48px;
+    padding-right: 48px;
+  }
+}
+
+/* TV-specific responsive design */
+@media (min-width: 1920px) {
+  body {
+    font-size: 36px;
+  }
+  
+  .tv-card {
+    @apply w-72 h-64;
+  }
+}
+
+/* Animation for loading states */
+@keyframes pulse-tv {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.animate-pulse-tv {
+  animation: pulse-tv 2s ease-in-out infinite;
+}
+
+/* Accessibility improvements for TV */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
