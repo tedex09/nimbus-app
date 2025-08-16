@@ -28,8 +28,8 @@ export default function RootLayout({
     <html lang="pt-BR">
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>ASSIST+</title>
-        <meta name="description" content="Smart TV Application" />
+        <title>Nimbus</title>
+        <meta name="description" content="" />
       </head>
       <body className={inter.className}>
         <div className="min-h-screen bg-[#0f0e1a] text-white">

@@ -75,6 +75,9 @@ const config: Config = {
         'tv': '16px',
         'tv-lg': '24px',
       },
+      borderWidth: {
+        '3': '3px',
+      },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
         'gradient-conic':

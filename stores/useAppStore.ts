@@ -2,17 +2,19 @@
 
 import { create } from 'zustand';
 import { persistentStorage } from '@/lib/storage';
-import { api, Session, LayoutData } from '@/lib/api';
+import { api, Session, LayoutData, UserInfo } from '@/lib/api';
 
 interface AppState {
   session: Session | null;
   layout: LayoutData | null;
+  userInfo: UserInfo | null;
   isLoading: boolean;
   error: string | null;
   
   // Actions
   setSession: (session: Session | null) => void;
   setLayout: (layout: LayoutData | null) => void;
+  setUserInfo: (userInfo: UserInfo | null) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   
@@ -21,16 +23,21 @@ interface AppState {
   logout: () => Promise<void>;
   loadLayout: (serverCode: string) => Promise<void>;
   initializeApp: () => Promise<void>;
+  
+  // Computed values
+  getExpirationDate: () => string | null;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
   session: null,
   layout: null,
+  userInfo: null,
   isLoading: false,
   error: null,
 
   setSession: (session) => set({ session }),
   setLayout: (layout) => set({ layout }),
+  setUserInfo: (userInfo) => set({ userInfo }),
   setLoading: (isLoading) => set({ isLoading }),
   setError: (error) => set({ error }),
 
@@ -39,7 +46,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       const session = await api.authenticate(serverCode, username, password);
       await persistentStorage.setSession(session);
-      set({ session, isLoading: false });
+      set({ 
+        session, 
+        userInfo: session.userInfo || null,
+        isLoading: false 
+      });
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'Login failed',
@@ -51,7 +62,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   logout: async () => {
     await persistentStorage.removeSession();
-    set({ session: null, layout: null });
+    set({ session: null, layout: null, userInfo: null });
   },
 
   loadLayout: async (serverCode) => {
@@ -86,13 +97,33 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       const session = await persistentStorage.getSession();
       if (session) {
-        set({ session });
+        set({ 
+          session,
+          userInfo: session.userInfo || null
+        });
         await get().loadLayout(session.serverCode);
       }
     } catch (error) {
       console.error('Failed to initialize app:', error);
     } finally {
       set({ isLoading: false });
+    }
+  },
+
+  getExpirationDate: () => {
+    const { userInfo } = get();
+    if (!userInfo?.exp_date) return null;
+    
+    try {
+      const date = new Date(userInfo.exp_date * 1000); // Convert Unix timestamp to milliseconds
+      return date.toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+    } catch (error) {
+      console.error('Error formatting expiration date:', error);
+      return null;
     }
   },
 }));

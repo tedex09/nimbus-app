@@ -4,59 +4,169 @@ export interface Session {
   serverCode: string;
   username: string;
   password: string;
+  userInfo?: UserInfo;
+}
+
+export interface UserInfo {
+  username: string;
+  password: string;
+  message: string;
+  auth: number;
+  status: string;
+  exp_date: number; // Unix timestamp
+  is_trial: string;
+  active_cons: string;
+  created_at: string;
+  max_connections: string;
+  allowed_output_formats: string[];
+}
+
+export interface MenuSection {
+  id: number;
+  name: string;
+  icon: string;
+  type: 'live' | 'vod';
+  categoryId: number;
+  enabled?: boolean;
+  order?: number;
 }
 
 export interface LayoutData {
-  version: string;
+  version: number;
+  serverCode: string;
   serverName: string;
   colors: {
     primary: string;
     secondary: string;
-    background: string;
+    background?: string;
   };
   logoUrl?: string;
   backgroundImageUrl?: string;
-  menuSections: Array<{
-    id: string;
-    name: string;
-    type: 'tv' | 'movies' | 'series';
-  }>;
+  menuSections: MenuSection[];
+  customization?: {
+    showSearch?: boolean;
+    showExpiry?: boolean;
+  };
+}
+
+export interface ApiError {
+  message: string;
+  code?: number;
 }
 
 export const api = {
   async authenticate(serverCode: string, username: string, password: string): Promise<Session> {
-    console.log(`Dados: ${serverCode}, ${username}, ${password}`);
-    const response = await fetch(`${API_BASE}/api/client-access`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        serverCode,
-        username,
-        password,
-      }),
-    });
+    
+    try {
+      const response = await fetch(`${API_BASE}/api/client-access`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          serverCode,
+          username,
+          password,
+        }),
+      });
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(error || 'Authentication failed');
+      if (!response.ok) {
+        let errorMessage = 'Authentication failed';
+        
+        switch (response.status) {
+          case 401:
+            errorMessage = 'Usuário ou senha inválidos';
+            break;
+          case 429:
+            errorMessage = 'Limite mensal de listas atingido';
+            break;
+          case 500:
+            errorMessage = 'Erro interno, tente novamente';
+            break;
+          default:
+            try {
+              const errorData = await response.text();
+              errorMessage = errorData || errorMessage;
+            } catch {
+              // Use default message
+            }
+        }
+        
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      const userInfo: UserInfo = data.userInfo;
+      
+      return { serverCode, username, password, userInfo };
+    } catch (error) {
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error('Erro de conexão. Verifique sua internet.');
     }
-
-    return { serverCode, username, password };
   },
 
   async getLayout(serverCode: string): Promise<LayoutData> {
-    const response = await fetch(`${API_BASE}/api/layout?server_code=${serverCode}`, {
-      headers: {
-        'Cache-Control': 'max-age=300', // 5 minutes
-      },
-    });
+    try {
+      const response = await fetch(`${API_BASE}/api/layout?server_code=${serverCode}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
 
-    if (!response.ok) {
-      throw new Error('Failed to fetch layout');
+      if (!response.ok) {
+        throw new Error(`Failed to fetch layout: ${response.status}`);
+      }
+
+      const layoutData = await response.json();
+
+      console.log(layoutData);
+      
+      // Validate and normalize the layout data
+      return {
+        version: layoutData.version || Date.now(),
+        serverCode: layoutData.serverCode || serverCode,
+        serverName: layoutData.serverName,
+        colors: {
+          primary: layoutData.colors?.primary || '#3b82f6',
+          secondary: layoutData.colors?.secondary || '#64748b',
+          background: layoutData.colors?.background || '#0f0e1a',
+        },
+        logoUrl: layoutData.logoUrl,
+        backgroundImageUrl: layoutData.backgroundImageUrl,
+        menuSections: (layoutData.menuSections || [])
+          .filter((section: MenuSection) => section.enabled !== false)
+          .sort((a: MenuSection, b: MenuSection) => (a.order || 0) - (b.order || 0)),
+        customization: layoutData.customization || {
+          showSearch: true,
+          showExpiry: true,
+        },
+      };
+    } catch (error) {
+      console.error('Failed to fetch layout:', error);
+      
+      // Return default layout if API fails
+      return {
+        version: Date.now(),
+        serverCode,
+        serverName: 'ASSIST+',
+        colors: {
+          primary: '#3b82f6',
+          secondary: '#64748b',
+          background: '#0f0e1a',
+        },
+        menuSections: [
+          { id: 1, name: 'TV', icon: 'tv', type: 'live', categoryId: 1 },
+          { id: 2, name: 'Filmes', icon: 'movie', type: 'vod', categoryId: 2 },
+          { id: 3, name: 'Séries', icon: 'tv', type: 'vod', categoryId: 3 },
+        ],
+        customization: {
+          showSearch: true,
+          showExpiry: true,
+        },
+      };
     }
-
-    return response.json();
   },
 };

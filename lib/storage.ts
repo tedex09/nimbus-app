@@ -57,7 +57,7 @@ const storage: StorageAdapter = typeof window !== 'undefined'
 export const persistentStorage = {
   async getSession() {
     try {
-      const data = await storage.getItem('assist.session');
+      const data = await storage.getItem('nimbus.session');
       return data ? JSON.parse(data) : null;
     } catch {
       return null;
@@ -66,7 +66,7 @@ export const persistentStorage = {
 
   async setSession(session: any) {
     try {
-      await storage.setItem('assist.session', JSON.stringify(session));
+      await storage.setItem('nimbus.session', JSON.stringify(session));
     } catch (error) {
       console.error('Failed to save session:', error);
     }
@@ -74,7 +74,7 @@ export const persistentStorage = {
 
   async removeSession() {
     try {
-      await storage.removeItem('assist.session');
+      await storage.removeItem('nimbus.session');
     } catch (error) {
       console.error('Failed to remove session:', error);
     }
@@ -82,7 +82,7 @@ export const persistentStorage = {
 
   async getLayout() {
     try {
-      const data = await storage.getItem('assist.layout');
+      const data = await storage.getItem('nimbus.layout');
       return data ? JSON.parse(data) : null;
     } catch {
       return null;
@@ -91,9 +91,34 @@ export const persistentStorage = {
 
   async setLayout(layout: any) {
     try {
-      await storage.setItem('assist.layout', JSON.stringify(layout));
+      await storage.setItem('nimbus.layout', JSON.stringify(layout));
     } catch (error) {
       console.error('Failed to save layout:', error);
+    }
+  },
+
+  async getUserInfo() {
+    try {
+      const data = await storage.getItem('nimbus.userInfo');
+      return data ? JSON.parse(data) : null;
+    } catch {
+      return null;
+    }
+  },
+
+  async setUserInfo(userInfo: any) {
+    try {
+      await storage.setItem('nimbus.userInfo', JSON.stringify(userInfo));
+    } catch (error) {
+      console.error('Failed to save user info:', error);
+    }
+  },
+
+  async removeUserInfo() {
+    try {
+      await storage.removeItem('nimbus.userInfo');
+    } catch (error) {
+      console.error('Failed to remove user info:', error);
     }
   }
 };

@@ -56,15 +56,12 @@
   /* Custom focus styles for TV navigation */
   [data-focus-key]:focus {
     @apply ring-0 outline-none;
-    border-color: #ffffff !important;
-    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.3);
-    transform: scale(1.05);
-    transition: all 0.2s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   /* Smooth transitions for all interactive elements */
   button, [tabindex], [data-focus-key] {
-    transition: all 0.2s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   /* Hide scrollbars for TV */
