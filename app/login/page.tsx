@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { init, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { useAppStore } from '@/stores/useAppStore';
 import { VirtualKeyboard } from '@/components/VirtualKeyboard';
+import { DeviceCodeLogin } from '@/components/DeviceCodeLogin';
 import { Eye, EyeOff, User, Lock, Server } from 'lucide-react';
 
 export default function LoginPage() {
@@ -18,6 +19,7 @@ export default function LoginPage() {
   const [activeField, setActiveField] = useState<'server' | 'username' | 'password'>('server');
   const [showPassword, setShowPassword] = useState(false);
   const [focusedElement, setFocusedElement] = useState<string | null>(null);
+  const [loginMode, setLoginMode] = useState<'credentials' | 'device-code'>('credentials');
 
   useEffect(() => {
     if (session) {
@@ -36,6 +38,18 @@ export default function LoginPage() {
       }, 200);
     }
   }, [session, router]);
+
+  const handleModeSwitch = useCallback((mode: 'credentials' | 'device-code') => {
+    setLoginMode(mode);
+    setFocusedElement(null);
+    
+    // Reset form state when switching modes
+    if (mode === 'credentials') {
+      setTimeout(() => {
+        setFocus('server-field');
+      }, 200);
+    }
+  }, []);
 
   const handleFieldFocus = useCallback((field: 'server' | 'username' | 'password') => {
     setActiveField(field);
@@ -112,6 +126,15 @@ export default function LoginPage() {
     }
   };
 
+  // Show device code login screen
+  if (loginMode === 'device-code') {
+    return (
+      <DeviceCodeLogin 
+        onBack={() => handleModeSwitch('credentials')} 
+      />
+    );
+  }
+
   return (
     <motion.div 
       className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex"
@@ -145,7 +168,7 @@ export default function LoginPage() {
               animate={{ y: 0, opacity: 1 }}
               transition={{ duration: 0.5, delay: 0.3 }}
             >
-              ASSIST+
+              Nimbus
             </motion.h1>
             <motion.p 
               className="text-2xl text-gray-300"
@@ -159,6 +182,47 @@ export default function LoginPage() {
 
           {/* Login Form */}
           <div className="bg-black/60 backdrop-blur-xl rounded-3xl p-8 border border-gray-700">
+            {/* Login Mode Selector */}
+            <div className="mb-8">
+              <div className="flex rounded-2xl bg-gray-800/50 p-2 gap-2">
+                <motion.button
+                  data-focus-key="credentials-mode"
+                  className={`
+                    flex-1 py-4 px-6 rounded-xl text-xl font-medium transition-all duration-200
+                    border-2 border-transparent focus:outline-none
+                    ${loginMode === 'credentials' 
+                      ? 'bg-blue-600 text-white' 
+                      : 'text-gray-400 hover:text-white hover:bg-gray-700/50'}
+                    ${focusedElement === 'credentials-mode' ? 'border-white' : ''}
+                  `}
+                  onClick={() => handleModeSwitch('credentials')}
+                  onFocus={() => setFocusedElement('credentials-mode')}
+                  onBlur={() => setFocusedElement(null)}
+                  whileFocus={{ scale: 1.02 }}
+                >
+                  Usuário e Senha
+                </motion.button>
+                
+                <motion.button
+                  data-focus-key="device-code-mode"
+                  className={`
+                    flex-1 py-4 px-6 rounded-xl text-xl font-medium transition-all duration-200
+                    border-2 border-transparent focus:outline-none
+                    ${loginMode === 'device-code' 
+                      ? 'bg-blue-600 text-white' 
+                      : 'text-gray-400 hover:text-white hover:bg-gray-700/50'}
+                    ${focusedElement === 'device-code-mode' ? 'border-white' : ''}
+                  `}
+                  onClick={() => handleModeSwitch('device-code')}
+                  onFocus={() => setFocusedElement('device-code-mode')}
+                  onBlur={() => setFocusedElement(null)}
+                  whileFocus={{ scale: 1.02 }}
+                >
+                  Entrar com Código
+                </motion.button>
+              </div>
+            </div>
+
             <div className="space-y-8">
               {/* Server Code Field */}
               <div>

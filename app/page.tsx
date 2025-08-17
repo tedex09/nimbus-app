@@ -37,6 +37,14 @@ export default function HomePage() {
     }
   }, [session, layout, router, loadLayout]);
 
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      const { stopDeviceCodePolling } = useAppStore.getState();
+      stopDeviceCodePolling();
+    };
+  }, []);
+
   useEffect(() => {
     // Update time every minute
     const updateTime = () => {
@@ -97,7 +105,7 @@ export default function HomePage() {
   const backgroundColor = layout?.colors?.background || '#0f0e1a';
   const backgroundImage = layout?.backgroundImageUrl;
   const logoUrl = layout?.logoUrl;
-  const serverName = layout?.serverName || 'ASSIST+';
+  const serverName = layout?.serverName || 'Nimbus';
   const expirationDate = getExpirationDate();
 
   // Prepare menu items

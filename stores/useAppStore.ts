@@ -3,6 +3,15 @@
 import { create } from 'zustand';
 import { persistentStorage } from '@/lib/storage';
 import { api, Session, LayoutData, UserInfo } from '@/lib/api';
+import { 
+  getDeviceId, 
+  requestDeviceCode, 
+  checkDeviceCodeStatus as utilCheckDeviceCodeStatus, 
+  pollDeviceCodeStatus,
+  consumeDeviceCode,
+  type DeviceCodeRequest as DeviceCodeRequestType,
+  type DeviceCodeStatus as DeviceCodeStatusType
+} from '@/utils/deviceCode';
 
 interface AppState {
   session: Session | null;
@@ -10,6 +19,8 @@ interface AppState {
   userInfo: UserInfo | null;
   isLoading: boolean;
   error: string | null;
+  deviceCode: DeviceCodeRequestType | null;
+  deviceCodePolling: boolean;
   
   // Actions
   setSession: (session: Session | null) => void;
@@ -17,9 +28,15 @@ interface AppState {
   setUserInfo: (userInfo: UserInfo | null) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
+  setDeviceCode: (deviceCode: DeviceCodeRequestType | null) => void;
+  setDeviceCodePolling: (polling: boolean) => void;
   
   // Async actions
   login: (serverCode: string, username: string, password: string) => Promise<void>;
+  loginWithDeviceCode: () => Promise<DeviceCodeRequestType>;
+  checkDeviceCodeStatus: (deviceCode: string) => Promise<DeviceCodeStatusType>;
+  startDeviceCodePolling: (deviceCode: DeviceCodeRequestType) => void;
+  stopDeviceCodePolling: () => void;
   logout: () => Promise<void>;
   loadLayout: (serverCode: string) => Promise<void>;
   initializeApp: () => Promise<void>;
@@ -34,12 +51,16 @@ export const useAppStore = create<AppState>((set, get) => ({
   userInfo: null,
   isLoading: false,
   error: null,
+  deviceCode: null,
+  deviceCodePolling: false,
 
   setSession: (session) => set({ session }),
   setLayout: (layout) => set({ layout }),
   setUserInfo: (userInfo) => set({ userInfo }),
   setLoading: (isLoading) => set({ isLoading }),
   setError: (error) => set({ error }),
+  setDeviceCode: (deviceCode) => set({ deviceCode }),
+  setDeviceCodePolling: (deviceCodePolling) => set({ deviceCodePolling }),
 
   login: async (serverCode, username, password) => {
     set({ isLoading: true, error: null });
@@ -60,35 +81,129 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 
+  loginWithDeviceCode: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const tvId = getDeviceId();
+      const deviceCodeData = await requestDeviceCode(tvId);
+      set({ 
+        deviceCode: deviceCodeData,
+        isLoading: false 
+      });
+      return deviceCodeData;
+    } catch (error) {
+      set({ 
+        error: error instanceof Error ? error.message : 'Falha ao gerar código',
+        isLoading: false 
+      });
+      throw error;
+    }
+  },
+
+  checkDeviceCodeStatus: async (deviceCode: string) => {
+    try {
+      const status = await utilCheckDeviceCodeStatus(deviceCode); // chama a função util
+      return status;
+    } catch (error) {
+      console.error('Failed to check device code status:', error);
+      throw error;
+    }
+  },
+
+
+  startDeviceCodePolling: (deviceCode) => {
+    if (!deviceCode) return;
+
+    const { stopDeviceCodePolling } = get();
+    
+    set({ deviceCodePolling: true });
+
+    pollDeviceCodeStatus(deviceCode.code, 5000, async (status) => {
+      if (status.status === 'authenticated') {
+        try {
+          const tvId = getDeviceId();
+          const authData = await consumeDeviceCode(deviceCode.code, tvId);
+          
+          const session: Session = {
+            serverCode: authData.serverCode,
+            username: authData.username,
+            password: authData.password,
+            userInfo: authData.userInfo
+          };
+          
+          await persistentStorage.setSession(session);
+          set({ 
+            session,
+            userInfo: authData.userInfo,
+            deviceCode: null,
+            error: null
+          });
+          
+          stopDeviceCodePolling();
+          get().loadLayout(authData.serverCode);
+        } catch (error) {
+          console.error('Failed to consume device code:', error);
+          set({ 
+            error: 'Erro ao finalizar autenticação',
+            deviceCode: null
+          });
+          stopDeviceCodePolling();
+        }
+      } else if (status.status === 'expired') {
+        set({ 
+          error: 'Código expirado. Gere um novo código.',
+          deviceCode: null
+        });
+        stopDeviceCodePolling();
+      } else if (status.status === 'used') {
+        set({ 
+          error: 'Código já foi utilizado. Gere um novo código.',
+          deviceCode: null
+        });
+        stopDeviceCodePolling();
+      }
+    }).catch((error) => {
+      console.error('Device code polling failed:', error);
+      set({ 
+        error: error instanceof Error ? error.message : 'Erro no polling do código',
+        deviceCode: null
+      });
+      stopDeviceCodePolling();
+    });
+  },
+
+  stopDeviceCodePolling: () => {
+    set({ deviceCodePolling: false });
+  },
+
   logout: async () => {
+    get().stopDeviceCodePolling();
     await persistentStorage.removeSession();
-    set({ session: null, layout: null, userInfo: null });
+    set({ 
+      session: null, 
+      layout: null, 
+      userInfo: null, 
+      deviceCode: null,
+      error: null
+    });
   },
 
   loadLayout: async (serverCode) => {
     try {
-      // Load from cache first
       const cachedLayout = await persistentStorage.getLayout();
-      if (cachedLayout) {
-        set({ layout: cachedLayout });
-      }
+      if (cachedLayout) set({ layout: cachedLayout });
 
-      // Try to fetch fresh data
       try {
         const freshLayout = await api.getLayout(serverCode);
-        
-        // Update if version changed or no cache
         if (!cachedLayout || cachedLayout.version !== freshLayout.version) {
           await persistentStorage.setLayout(freshLayout);
           set({ layout: freshLayout });
         }
       } catch (error) {
-        // Silently fail on network error, use cached data
         console.warn('Failed to fetch fresh layout, using cached version:', error);
       }
     } catch (error) {
       console.error('Failed to load layout:', error);
-      // Continue without layout, don't block the app
     }
   },
 
@@ -113,9 +228,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   getExpirationDate: () => {
     const { userInfo } = get();
     if (!userInfo?.exp_date) return null;
-    
     try {
-      const date = new Date(userInfo.exp_date * 1000); // Convert Unix timestamp to milliseconds
+      const date = new Date(userInfo.exp_date * 1000);
       return date.toLocaleDateString('pt-BR', {
         day: '2-digit',
         month: '2-digit',

@@ -54,6 +54,22 @@ export interface ApiError {
   code?: number;
 }
 
+// Device code types moved to utils/deviceCode.ts
+// Keeping these for backward compatibility
+export interface DeviceCodeRequest {
+  device_code: string;
+  user_code: string;
+  verification_uri: string;
+  expires_in: number;
+  interval: number;
+}
+
+export interface DeviceCodeStatus {
+  status: 'pending' | 'authenticated' | 'expired' | 'denied';
+  userInfo?: UserInfo;
+  serverCode?: string;
+}
+
 export const api = {
   async authenticate(serverCode: string, username: string, password: string): Promise<Session> {
     
@@ -151,7 +167,7 @@ export const api = {
       return {
         version: Date.now(),
         serverCode,
-        serverName: 'ASSIST+',
+        serverName: 'Nimbus',
         colors: {
           primary: '#3b82f6',
           secondary: '#64748b',
@@ -168,5 +184,42 @@ export const api = {
         },
       };
     }
+  },
+
+  async requestDeviceCode(tvId: string): Promise<DeviceCodeRequest> {
+    // This method is deprecated - use utils/deviceCode.ts instead
+    console.warn('api.requestDeviceCode is deprecated, use utils/deviceCode.ts instead');
+    
+    // For backward compatibility, convert new format to old format
+    const { requestDeviceCode: newRequestDeviceCode } = await import('@/utils/deviceCode');
+    const result = await newRequestDeviceCode(tvId);
+    
+    return {
+      device_code: result.code,
+      user_code: result.code,
+      verification_uri: 'https://meusite.com/tv',
+      expires_in: result.expiresIn,
+      interval: 5
+    };
+  },
+
+  async checkDeviceCodeStatus(deviceCode: string): Promise<DeviceCodeStatus> {
+    // This method is deprecated - use utils/deviceCode.ts instead
+    console.warn('api.checkDeviceCodeStatus is deprecated, use utils/deviceCode.ts instead');
+    
+    const { checkDeviceCodeStatus: newCheckDeviceCodeStatus } = await import('@/utils/deviceCode');
+    const result = await newCheckDeviceCodeStatus(deviceCode);
+    
+    // Convert new format to old format
+    let status: 'pending' | 'authenticated' | 'expired' | 'denied' = 'pending';
+    if (result.status === 'authenticated') status = 'authenticated';
+    else if (result.status === 'expired') status = 'expired';
+    else if (result.status === 'used') status = 'denied';
+    
+    return {
+      status,
+      userInfo: result.userInfo,
+      serverCode: result.serverCode
+    };
   },
 };
