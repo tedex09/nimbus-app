@@ -323,7 +323,7 @@ export default function HomePage() {
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.6, delay: 0.8 }}
       >
-        <div className="text-gray-300 text-xl backdrop-blur-sm bg-black/20 rounded-2xl p-4 inline-block">
+        <div className="text-gray-300 text-xl p-4 inline-block">
           Nimbus • Versão: 1.0.0
         </div>
       </motion.footer>
