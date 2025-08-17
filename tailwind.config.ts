@@ -56,6 +56,9 @@ const config: Config = {
         'tv-card': '#1a1825',
         'tv-focus': '#ffffff',
       },
+      fontFamily: {
+        sf: ['SF Pro Display', 'sans-serif'],
+      },
       fontSize: {
         'tv-xs': ['24px', '32px'],
         'tv-sm': ['28px', '36px'],

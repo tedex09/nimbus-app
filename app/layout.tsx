@@ -1,10 +1,7 @@
 'use client';
 
 import './globals.css';
-import { Inter } from 'next/font/google';
 import { useEffect } from 'react';
-
-const inter = Inter({ subsets: ['latin'] });
 
 export default function RootLayout({
   children,
@@ -14,7 +11,8 @@ export default function RootLayout({
   useEffect(() => {
     // Register Service Worker
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js')
+      navigator.serviceWorker
+        .register('/sw.js')
         .then((registration) => {
           console.log('SW registered:', registration);
         })
@@ -30,8 +28,12 @@ export default function RootLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>Nimbus</title>
         <meta name="description" content="" />
+        <link
+          href="https://fonts.cdnfonts.com/css/sf-pro-display"
+          rel="stylesheet"
+        />
       </head>
-      <body className={inter.className}>
+      <body>
         <div className="min-h-screen bg-[#0f0e1a] text-white">
           {children}
         </div>
