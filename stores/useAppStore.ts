@@ -102,7 +102,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   checkDeviceCodeStatus: async (deviceCode: string) => {
     try {
-      const status = await utilCheckDeviceCodeStatus(deviceCode); // chama a função util
+      const status = await utilCheckDeviceCodeStatus(deviceCode); 
       return status;
     } catch (error) {
       console.error('Failed to check device code status:', error);
@@ -110,37 +110,34 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 
-
   startDeviceCodePolling: (deviceCode) => {
     if (!deviceCode) return;
 
     const { stopDeviceCodePolling } = get();
-    
     set({ deviceCodePolling: true });
 
     pollDeviceCodeStatus(deviceCode.code, 5000, async (status) => {
       if (status.status === 'authenticated') {
         try {
-          const tvId = getDeviceId();
-          const authData = await consumeDeviceCode(deviceCode.code, tvId);
-          
+          // Criar session direto com os dados recebidos da API
           const session: Session = {
-            serverCode: authData.serverCode,
-            username: authData.username,
-            password: authData.password,
-            userInfo: authData.userInfo
+            serverCode: status.serverCode!,
+            username: status.username!,
+            password: '', // não precisamos da senha depois da autorização
+            userInfo: status.userInfo || null,
           };
-          
+
           await persistentStorage.setSession(session);
-          set({ 
+          set({
             session,
-            userInfo: authData.userInfo,
+            userInfo: session.userInfo,
             deviceCode: null,
             error: null
           });
-          
+
           stopDeviceCodePolling();
-          get().loadLayout(authData.serverCode);
+          await get().loadLayout(session.serverCode);
+
         } catch (error) {
           console.error('Failed to consume device code:', error);
           set({ 

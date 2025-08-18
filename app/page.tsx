@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { init, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { useAppStore } from '@/stores/useAppStore';
-import { Tv, Film, Clock, Settings, List, Wifi, WifiOff, Calendar } from 'lucide-react';
+import { Tv, Film, User, Settings, List, Wifi, WifiOff, Calendar } from 'lucide-react';
 
 const iconMap = {
   tv: Tv,
@@ -18,78 +18,45 @@ const iconMap = {
 
 export default function HomePage() {
   const router = useRouter();
-  const { session, layout, userInfo, initializeApp, loadLayout, getExpirationDate } = useAppStore();
+  const { session, layout, initializeApp, loadLayout, getExpirationDate } = useAppStore();
   const [currentTime, setCurrentTime] = useState('');
   const [focusedItem, setFocusedItem] = useState<string | null>(null);
 
-  useEffect(() => {
-    initializeApp();
-  }, [initializeApp]);
+  useEffect(() => { initializeApp(); }, [initializeApp]);
 
   useEffect(() => {
-    if (!session) {
-      router.push('/login');
-      return;
-    }
-
-    if (session.serverCode && !layout) {
-      loadLayout(session.serverCode);
-    }
+    if (!session) { router.push('/login'); return; }
+    if (session.serverCode && !layout) { loadLayout(session.serverCode); }
   }, [session, layout, router, loadLayout]);
 
-  // Cleanup polling on unmount
-  useEffect(() => {
-    return () => {
-      const { stopDeviceCodePolling } = useAppStore.getState();
-      stopDeviceCodePolling();
-    };
-  }, []);
+  useEffect(() => { return () => { const { stopDeviceCodePolling } = useAppStore.getState(); stopDeviceCodePolling(); }; }, []);
 
   useEffect(() => {
-    // Update time every minute
     const updateTime = () => {
       const now = new Date();
-      setCurrentTime(now.toLocaleTimeString('pt-BR', { 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      }));
+      setCurrentTime(now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
     };
-    
     updateTime();
     const timeInterval = setInterval(updateTime, 60000);
-    
     return () => clearInterval(timeInterval);
   }, []);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      init({
-        debug: false,
-        visualDebug: false,
-      });
-      
-      setTimeout(() => {
-        setFocus('menu-item-0');
-      }, 100);
+      init({ debug: false, visualDebug: false });
+      setTimeout(() => setFocus('menu-item-0'), 100);
     }
   }, [layout]);
 
-  const handleNavigation = useCallback((path: string) => {
-    router.push(path);
-  }, [router]);
-
+  const handleNavigation = useCallback((path: string) => { router.push(path); }, [router]);
   const handleKeyDown = useCallback((event: React.KeyboardEvent, path: string) => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      handleNavigation(path);
-    }
+    if (event.key === 'Enter') { event.preventDefault(); handleNavigation(path); }
   }, [handleNavigation]);
 
   if (!session) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <motion.div 
-          className="text-4xl text-white"
+      <div className="w-[100vw] h-[100vh] flex items-center justify-center bg-black">
+        <motion.div className="text-[5vh] text-white"
           animate={{ opacity: [0.5, 1, 0.5] }}
           transition={{ duration: 2, repeat: Infinity }}
         >
@@ -99,16 +66,14 @@ export default function HomePage() {
     );
   }
 
-  // Apply theme from layout
-  const primaryColor = layout?.colors?.primary || '#3b82f6';
-  const secondaryColor = layout?.colors?.secondary || '#64748b';
+  const primaryColor = layout?.colors?.primary || '#ff2d55';
+  const secondaryColor = layout?.colors?.secondary || '#5ac8fa';
   const backgroundColor = layout?.colors?.background || '#0f0e1a';
   const backgroundImage = layout?.backgroundImageUrl;
   const logoUrl = layout?.logoUrl;
   const serverName = layout?.serverName || 'Nimbus';
   const expirationDate = getExpirationDate();
 
-  // Prepare menu items
   const menuItems = [
     ...(layout?.menuSections?.map((section, index) => ({
       id: `menu-${section.type}-${section.id}`,
@@ -125,63 +90,42 @@ export default function HomePage() {
       focusKey: `menu-item-${(layout?.menuSections?.length || 0)}`,
       icon: List,
       type: 'lists',
-    },
-    {
-      id: 'menu-settings',
-      title: 'Configurações',
-      path: '/settings',
-      focusKey: `menu-item-${(layout?.menuSections?.length || 0) + 1}`,
-      icon: Settings,
-      type: 'settings',
-    },
+    }
   ];
 
   const backgroundStyle = backgroundImage
-    ? {
-        background: `linear-gradient(rgba(15, 14, 26, 0.7), rgba(15, 14, 26, 0.7)), url(${backgroundImage})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundAttachment: 'fixed',
-      }
-    : {
-        backgroundColor: backgroundColor,
-        background: `linear-gradient(135deg, ${backgroundColor} 0%, ${backgroundColor}dd 100%)`,
-      };
+    ? { background: `linear-gradient(rgba(15,14,26,0.7), rgba(15,14,26,0.7)), url(${backgroundImage})`, backgroundSize: 'cover', backgroundRepeat: 'no-repeat', backgroundPosition: 'center', backgroundAttachment: 'fixed' }
+    : { backgroundColor, background: `linear-gradient(135deg, ${backgroundColor} 0%, ${backgroundColor}dd 100%)` };
 
   return (
-    <motion.div 
-      className="min-h-screen relative overflow-hidden"
-      style={backgroundStyle}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.8 }}
-    >
-      {/* Animated background overlay */}
-      <div className="absolute inset-0 bg-gradient-to-br from-black/20 via-transparent to-black/40" />
+    <motion.div className="w-[100vw] h-[100vh] relative overflow-hidden" style={backgroundStyle} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8 }}>
       
+      {/* Overlay */}
+      <div className="absolute inset-0 bg-gradient-to-br from-black/20 via-transparent to-black/40" />
+
       {/* Header */}
-      <motion.header 
-        className="relative z-10 flex justify-between items-center p-12"
-        initial={{ y: -50, opacity: 0 }}
+      <motion.header
+        className="relative z-10 flex justify-between items-center p-[2vh_4vw]"
+        initial={{ y: -5 + 'vh', opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.6, delay: 0.2 }}
       >
-        <div className="flex items-center space-x-6">
+        {/* Logo ou Nome do Servidor */}
+        <div className="flex items-center space-x-[2vw]">
           <AnimatePresence>
             {logoUrl ? (
-              <motion.img 
-                src={logoUrl} 
-                alt="Logo" 
-                className="h-20 w-auto"
+              <motion.img
+                src={logoUrl}
+                alt="Logo"
+                className="h-[8vh] w-auto"
                 initial={{ scale: 0, rotate: -180 }}
                 animate={{ scale: 1, rotate: 0 }}
                 transition={{ duration: 0.6, delay: 0.3 }}
               />
             ) : (
-              <motion.h1 
-                className="text-7xl font-bold text-white drop-shadow-2xl"
-                style={{ color: 'white' }}
-                initial={{ x: -50, opacity: 0 }}
+              <motion.h1
+                className="text-[5vh] font-bold text-white drop-shadow-2xl"
+                initial={{ x: -5 + 'vw', opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ duration: 0.6, delay: 0.4 }}
               >
@@ -190,164 +134,93 @@ export default function HomePage() {
             )}
           </AnimatePresence>
         </div>
-        
-        <motion.div 
-          className="text-right"
-          initial={{ x: 50, opacity: 0 }}
+
+        {/* Relógio + Botões */}
+        <motion.div
+          className="flex items-center gap-[1.2vw] bg-black/30 rounded-[3vw] py-[0.5vw] px-[2vw]"
+          initial={{ x: 5 + 'vw', opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.5 }}
         >
-          <div className="text-3xl font-bold mb-2 text-white drop-shadow-lg">
+          <div className="text-[3.5vh] font-bold text-white/50 drop-shadow-lg">
             {currentTime}
           </div>
-          {expirationDate && (
-            <motion.div 
-              className="text-lg flex items-center gap-2 text-yellow-400"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.6 }}
+
+          {/* Botão Configurações */}
+          <div className="flex flex-row gap-[0.5vw] -mr-[1.4vw]">
+            <button
+              className="w-[6vh] h-[6vh] flex items-center justify-center rounded-full bg-white/30 hover:bg-white shadow-lg hover:scale-105 transition-transform"
+              onClick={() => handleNavigation('/settings')}
             >
-              <Calendar className="w-5 h-5" />
-              Vencimento: {expirationDate}
-            </motion.div>
-          )}
+              <Settings className="w-[3vh] h-[3vh] text-black" />
+            </button>
+
+            {/* Botão Usuário */}
+            <button
+              className="w-[6vh] h-[6vh] flex items-center justify-center rounded-full bg-white/30 hover:bg-white shadow-lg hover:scale-105 transition-transform"
+              onClick={() => handleNavigation('/profile')}
+            >
+              <User className="w-[3vh] h-[3vh] text-black" />
+            </button>
+          </div>
         </motion.div>
       </motion.header>
 
-      {/* Main Content */}
-      <main className="relative z-10 px-12 pb-12">
-        <motion.div 
-          className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8 max-w-7xl mx-auto"
-          initial={{ y: 50, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.6, delay: 0.6 }}
-        >
+
+      {/* Menu horizontal centralizado */}
+      <main className="absolute top-[50%] left-[50%] transform -translate-x-[50%] -translate-y-[50%] w-[90vw] flex justify-center">
+        <div className="flex gap-[2vw]">
           {menuItems.map((item, index) => {
             const IconComponent = item.icon;
             const isFocused = focusedItem === item.focusKey;
-            
             return (
               <motion.div
                 key={item.id}
                 data-focus-key={item.focusKey}
                 className={`
-                  w-[16vw] h-[14vw] rounded-[1vw] p-[4vw]
-                  transition-all duration-300
-                  focus:outline-none
-                  backdrop-blur-sm relative overflow-hidden
-                  ${isFocused ? 'border-white shadow-2xl shadow-white/30' : ''}
+                  relative
+                  w-[18vw] h-[12vw] rounded-[3vw] flex flex-col items-center justify-center
+                  text-white font-bold text-[4vw] transition-all duration-300
+                  focus:outline-none overflow-hidden
+                  ${isFocused ? 'scale-[1.05] shadow-2xl' : 'shadow-lg'}
                 `}
-                style={{ 
-                  backgroundColor: `${secondaryColor}cc`,
-                  backdropFilter: 'blur(10px)',
+                style={{
+                  background: `linear-gradient(45deg, ${primaryColor}, ${secondaryColor})`,
+                  boxShadow: isFocused
+                    ? '0 1vh 2vh rgba(0,0,0,0.6), inset 0 0.4vh 0.8vh rgba(255,255,255,0.15)'
+                    : '0 0.5vh 1vh rgba(0,0,0,0.5), inset 0 0.3vh 0.6vh rgba(255,255,255,0.1)',
                 }}
                 tabIndex={0}
                 onClick={() => handleNavigation(item.path)}
                 onKeyDown={(e) => handleKeyDown(e, item.path)}
                 onFocus={() => setFocusedItem(item.focusKey)}
                 onBlur={() => setFocusedItem(null)}
-                initial={{ opacity: 0, y: 20, scale: 0.9 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ duration: 0.4, delay: 0.1 * index }}
-                whileFocus={{ 
-                  scale: 1.05,
-                  transition: { duration: 0.2 }
-                }}
-                whileHover={{ 
-                  scale: 1.02,
-                  transition: { duration: 0.2 }
-                }}
               >
-                {/* Background gradient overlay */}
-                <div 
-                  className="absolute inset-0 rounded-[1vw] opacity-20"
+                {/* Overlay gradiente estilo Apple */}
+                <div className="absolute inset-0 pointer-events-none"
                   style={{
-                    background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
+                    background: 'linear-gradient(to bottom, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.1) 40%, rgba(0,0,0,0.15) 100%)',
+                    mixBlendMode: 'overlay',
                   }}
                 />
-                
-                {/* Content */}
-                <div className="relative z-10 h-full flex flex-col items-center justify-center text-center">
-                  <motion.div
-                    className="mb-6"
-                    animate={isFocused ? { 
-                      scale: [1, 1.1, 1],
-                      rotate: [0, 5, -5, 0]
-                    } : {}}
-                    transition={{ duration: 0.6, repeat: isFocused ? Infinity : 0 }}
-                  >
-                    <IconComponent 
-                      className="w-16 h-16 text-white drop-shadow-lg" 
-                      style={{ filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))' }}
-                    />
-                  </motion.div>
-                  
-                  <h3 className="text-3xl font-bold text-white mb-4 drop-shadow-lg">
-                    {item.title}
-                  </h3>
-                  
-                  {/* Progress bar animation */}
-                  <div className="w-full h-2 bg-white/20 rounded-full overflow-hidden">
-                    <motion.div 
-                      className="h-full rounded-full"
-                      style={{ backgroundColor: primaryColor }}
-                      initial={{ width: '0%' }}
-                      animate={{ width: isFocused ? '100%' : '0%' }}
-                      transition={{ duration: 0.3 }}
-                    />
-                  </div>
-                </div>
 
-                {/* Focus ring */}
-                <AnimatePresence>
-                  {isFocused && (
-                    <motion.div
-                      className="absolute inset-0 rounded-3xl border-4 border-white"
-                      initial={{ scale: 0.8, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0.8, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                    />
-                  )}
-                </AnimatePresence>
+                {/* Conteúdo */}
+                <IconComponent className="w-[4vw] h-[4vw] mb-[1vh] drop-shadow-lg" />
+                {/* {item.title} */}
               </motion.div>
+
             );
           })}
-        </motion.div>
+        </div>
       </main>
 
-      {/* Footer */}
-      <motion.footer 
-        className="absolute bottom-0 left-0 right-0 p-8 text-center relative z-10"
-        initial={{ y: 50, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.6, delay: 0.8 }}
-      >
-        <div className="text-gray-300 text-xl p-4 inline-block">
-          Nimbus • Versão: 1.0.0
+      {/* Footer / Vencimento */}
+      {expirationDate && (
+        <div className="absolute bottom-[2vh] left-[2vw] text-[2.5vh] text-yellow-400 flex items-center gap-[0.5vw] z-20">
+          <Calendar className="w-[2.5vh] h-[2.5vh]" />
+          Vencimento:  {expirationDate}
         </div>
-      </motion.footer>
-
-      {/* Loading overlay */}
-      <AnimatePresence>
-        {!layout && session && (
-          <motion.div
-            className="absolute inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <div className="text-center">
-              <motion.div
-                className="w-16 h-16 border-4 border-white border-t-transparent rounded-full mx-auto mb-4"
-                animate={{ rotate: 360 }}
-                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-              />
-              <div className="text-2xl text-white">Carregando layout...</div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      )}
     </motion.div>
   );
 }
