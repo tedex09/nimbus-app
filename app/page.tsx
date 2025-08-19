@@ -144,7 +144,7 @@ function MenuItem({
   secondaryColor,
   onNavigate,
 }: {
-  item: { path: string; icon: React.ComponentType<any>; title: string };
+  item: { path: string; icon: React.ComponentType<any>; title: string; focusKey: string };
   primaryColor: string;
   secondaryColor: string;
   onNavigate: (path: string) => void;
@@ -180,7 +180,8 @@ function MenuItem({
       </motion.div>
 
       {/* Título abaixo do botão */}
-      <span className={`
+      <span
+        className={`
           text-[1.3vw] font-bold drop-shadow-md
           ${focused ? 'text-white' : 'text-white/50'}
         `}
@@ -190,3 +191,4 @@ function MenuItem({
     </div>
   );
 }
+
