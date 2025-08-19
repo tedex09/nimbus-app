@@ -2,6 +2,7 @@
 
 import './globals.css';
 import { useEffect } from 'react';
+import { SpatialNavigationProvider } from '@/components/SpatialNavigationProvider';
 
 export default function RootLayout({
   children,
@@ -34,9 +35,11 @@ export default function RootLayout({
         />
       </head>
       <body>
-        <div className="min-h-screen bg-[#0f0e1a] text-white">
-          {children}
-        </div>
+        <SpatialNavigationProvider>
+          <div className="min-h-screen bg-[#0f0e1a] text-white">
+            {children}
+          </div>
+        </SpatialNavigationProvider>
       </body>
     </html>
   );

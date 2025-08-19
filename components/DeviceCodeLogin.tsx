@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
+import { useFocusable } from '@noriginmedia/norigin-spatial-navigation';
 import { useAppStore } from '@/stores/useAppStore';
 import { Smartphone, Monitor, Clock, RefreshCw, CheckCircle, XCircle } from 'lucide-react';
 
@@ -23,11 +23,12 @@ export function DeviceCodeLogin({ onBack }: DeviceCodeLoginProps) {
   } = useAppStore();
   
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
-  const [focusedElement, setFocusedElement] = useState<string | null>(null);
 
-  useEffect(() => {
-    setTimeout(() => setFocus('generate-code-button'), 200);
-  }, []);
+  // Container focusable
+  const { ref: containerRef } = useFocusable({
+    focusKey: 'device-code-container',
+    isFocusBoundary: true,
+  });
 
   useEffect(() => {
   if (deviceCode) {
@@ -71,14 +72,6 @@ export function DeviceCodeLogin({ onBack }: DeviceCodeLoginProps) {
     onBack();
   }, [stopDeviceCodePolling, onBack]);
 
-  const handleKeyDown = useCallback((event: React.KeyboardEvent, action: string) => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      if (action === 'generate' || action === 'retry') handleGenerateCode();
-      if (action === 'back') handleBack();
-    }
-  }, [handleGenerateCode, handleBack]);
-
   const formatTime = (seconds?: number) => {
     if (!seconds || seconds <= 0) return '0:00';
     const minutes = Math.floor(seconds / 60);
@@ -93,6 +86,7 @@ export function DeviceCodeLogin({ onBack }: DeviceCodeLoginProps) {
 
   return (
     <motion.div 
+      ref={containerRef}
       className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center p-8"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -127,19 +121,7 @@ export function DeviceCodeLogin({ onBack }: DeviceCodeLoginProps) {
                 <p className="text-2xl text-gray-300 mb-8">
                   Clique no botão abaixo para gerar um código de autenticação
                 </p>
-                <motion.button
-                  data-focus-key="generate-code-button"
-                  className={`px-12 py-6 rounded-2xl text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white border-3 border-transparent transition-all duration-200 focus:outline-none focus:border-white focus:shadow-lg focus:shadow-white/20 ${focusedElement === 'generate-code-button' ? 'border-white shadow-lg shadow-white/20' : ''}`}
-                  onClick={handleGenerateCode}
-                  onKeyDown={(e) => handleKeyDown(e, 'generate')}
-                  onFocus={() => setFocusedElement('generate-code-button')}
-                  onBlur={() => setFocusedElement(null)}
-                  whileFocus={{ scale: 1.05 }}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  Gerar Código
-                </motion.button>
+                <GenerateCodeButton onGenerate={handleGenerateCode} />
               </motion.div>
             )}
 
@@ -213,17 +195,92 @@ export function DeviceCodeLogin({ onBack }: DeviceCodeLoginProps) {
                 </div>
                 <div className="bg-red-900/30 rounded-2xl p-8 border border-red-500/30">
                   <p className="text-2xl text-red-400 mb-6">{error}</p>
-                  <motion.button data-focus-key="retry-button" className={`px-8 py-4 rounded-xl text-xl font-bold bg-red-600 hover:bg-red-500 text-white border-3 border-transparent transition-all duration-200 ${focusedElement === 'retry-button' ? 'border-white shadow-lg shadow-white/20' : ''}`} onClick={handleGenerateCode} onKeyDown={(e) => handleKeyDown(e, 'retry')} onFocus={() => setFocusedElement('retry-button')} onBlur={() => setFocusedElement(null)} whileFocus={{ scale: 1.05 }} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>Tentar Novamente</motion.button>
+                  <RetryButton onRetry={handleGenerateCode} />
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
 
           <div className="flex justify-center mt-12">
-            <motion.button data-focus-key="back-button" className={`px-8 py-4 rounded-xl text-xl font-medium bg-gray-700 hover:bg-gray-600 text-white border-3 border-transparent transition-all duration-200 ${focusedElement === 'back-button' ? 'border-white shadow-lg shadow-white/20' : ''}`} onClick={handleBack} onKeyDown={(e) => handleKeyDown(e, 'back')} onFocus={() => setFocusedElement('back-button')} onBlur={() => setFocusedElement(null)} whileFocus={{ scale: 1.05 }} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>← Voltar</motion.button>
+            <BackButton onBack={handleBack} />
           </div>
         </motion.div>
       </div>
     </motion.div>
+  );
+}
+// Componentes focáveis separados
+function GenerateCodeButton({ onGenerate }: { onGenerate: () => void; }) {
+  const { ref, focused } = useFocusable({
+    focusKey: 'generate-code-button',
+    onEnterPress: onGenerate,
+  });
+
+  return (
+    <motion.button
+      ref={ref}
+      className={`
+        px-12 py-6 rounded-2xl text-2xl font-bold 
+        bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 
+        text-white border-3 transition-all duration-200
+        ${focused ? 'border-white shadow-lg shadow-white/20' : 'border-transparent'}
+      `}
+      onClick={onGenerate}
+      whileFocus={{ scale: 1.05 }}
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+    >
+      Gerar Código
+    </motion.button>
+  );
+}
+
+function RetryButton({ onRetry }: { onRetry: () => void }) {
+  const { ref, focused } = useFocusable({
+    focusKey: 'retry-button',
+    onEnterPress: onRetry,
+  });
+
+  return (
+    <motion.button
+      ref={ref}
+      className={`
+        px-8 py-4 rounded-xl text-xl font-bold 
+        bg-red-600 hover:bg-red-500 text-white 
+        border-3 transition-all duration-200
+        ${focused ? 'border-white shadow-lg shadow-white/20' : 'border-transparent'}
+      `}
+      onClick={onRetry}
+      whileFocus={{ scale: 1.05 }}
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+    >
+      Tentar Novamente
+    </motion.button>
+  );
+}
+
+function BackButton({ onBack }: { onBack: () => void }) {
+  const { ref, focused } = useFocusable({
+    focusKey: 'back-button',
+    onEnterPress: onBack,
+  });
+
+  return (
+    <motion.button
+      ref={ref}
+      className={`
+        px-8 py-4 rounded-xl text-xl font-medium 
+        bg-gray-700 hover:bg-gray-600 text-white 
+        border-3 transition-all duration-200
+        ${focused ? 'border-white shadow-lg shadow-white/20' : 'border-transparent'}
+      `}
+      onClick={onBack}
+      whileFocus={{ scale: 1.05 }}
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+    >
+      ← Voltar
+    </motion.button>
   );
 }

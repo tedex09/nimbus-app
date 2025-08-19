@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { init, setFocus } from '@noriginmedia/norigin-spatial-navigation';
+import { useFocusable } from '@noriginmedia/norigin-spatial-navigation';
 import { useAppStore } from '@/stores/useAppStore';
 import { VirtualKeyboard } from '@/components/VirtualKeyboard';
 import { DeviceCodeLogin } from '@/components/DeviceCodeLogin';
@@ -21,34 +21,22 @@ export default function LoginPage() {
   const [focusedElement, setFocusedElement] = useState<string | null>(null);
   const [loginMode, setLoginMode] = useState<'credentials' | 'device-code'>('credentials');
 
+  // Main container focusable
+  const { ref: containerRef } = useFocusable({
+    focusKey: 'login-container',
+    isFocusBoundary: true,
+  });
+
   useEffect(() => {
     if (session) {
       router.push('/');
       return;
-    }
-
-    if (typeof window !== 'undefined') {
-      init({
-        debug: false,
-        visualDebug: false,
-      });
-      
-      setTimeout(() => {
-        setFocus('server-field');
-      }, 200);
     }
   }, [session, router]);
 
   const handleModeSwitch = useCallback((mode: 'credentials' | 'device-code') => {
     setLoginMode(mode);
     setFocusedElement(null);
-    
-    // Reset form state when switching modes
-    if (mode === 'credentials') {
-      setTimeout(() => {
-        setFocus('server-field');
-      }, 200);
-    }
   }, []);
 
   const handleFieldFocus = useCallback((field: 'server' | 'username' | 'password') => {
@@ -137,6 +125,7 @@ export default function LoginPage() {
 
   return (
     <motion.div 
+      ref={containerRef}
       className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -229,40 +218,11 @@ export default function LoginPage() {
                 <label className="block text-xl font-medium text-gray-200 mb-4">
                   Código do Servidor
                 </label>
-                <motion.div
-                  data-focus-key="server-field"
-                  className={`
-                    w-full h-20 px-6 bg-gray-800/80 rounded-2xl text-2xl
-                    border-3 border-transparent transition-all duration-200
-                    focus:border-blue-500 focus:outline-none cursor-pointer
-                    flex items-center gap-4
-                    ${activeField === 'server' ? 'border-blue-500 bg-gray-700/80' : ''}
-                    ${focusedElement === 'server-field' ? 'border-white shadow-lg shadow-white/20' : ''}
-                  `}
-                  tabIndex={0}
-                  onClick={() => handleFieldFocus('server')}
-                  onFocus={() => {
-                    handleFieldFocus('server');
-                    setFocusedElement('server-field');
-                  }}
-                  onBlur={() => setFocusedElement(null)}
-                  onKeyDown={handleKeyDown}
-                  whileFocus={{ scale: 1.02 }}
-                >
-                  <div className="text-gray-400">
-                    {getFieldIcon('server')}
-                  </div>
-                  <div className="flex-1">
-                    {serverCode || <span className="text-gray-500">{getFieldPlaceholder('server')}</span>}
-                  </div>
-                  {activeField === 'server' && (
-                    <motion.div
-                      className="w-1 h-8 bg-blue-500 rounded-full"
-                      animate={{ opacity: [1, 0, 1] }}
-                      transition={{ duration: 1, repeat: Infinity }}
-                    />
-                  )}
-                </motion.div>
+                <ServerField 
+                  value={serverCode}
+                  isActive={activeField === 'server'}
+                  onFocus={() => handleFieldFocus('server')}
+                />
               </div>
 
               {/* Username Field */}
@@ -270,40 +230,11 @@ export default function LoginPage() {
                 <label className="block text-xl font-medium text-gray-200 mb-4">
                   Usuário
                 </label>
-                <motion.div
-                  data-focus-key="username-field"
-                  className={`
-                    w-full h-20 px-6 bg-gray-800/80 rounded-2xl text-2xl
-                    border-3 border-transparent transition-all duration-200
-                    focus:border-blue-500 focus:outline-none cursor-pointer
-                    flex items-center gap-4
-                    ${activeField === 'username' ? 'border-blue-500 bg-gray-700/80' : ''}
-                    ${focusedElement === 'username-field' ? 'border-white shadow-lg shadow-white/20' : ''}
-                  `}
-                  tabIndex={0}
-                  onClick={() => handleFieldFocus('username')}
-                  onFocus={() => {
-                    handleFieldFocus('username');
-                    setFocusedElement('username-field');
-                  }}
-                  onBlur={() => setFocusedElement(null)}
-                  onKeyDown={handleKeyDown}
-                  whileFocus={{ scale: 1.02 }}
-                >
-                  <div className="text-gray-400">
-                    {getFieldIcon('username')}
-                  </div>
-                  <div className="flex-1">
-                    {username || <span className="text-gray-500">{getFieldPlaceholder('username')}</span>}
-                  </div>
-                  {activeField === 'username' && (
-                    <motion.div
-                      className="w-1 h-8 bg-blue-500 rounded-full"
-                      animate={{ opacity: [1, 0, 1] }}
-                      transition={{ duration: 1, repeat: Infinity }}
-                    />
-                  )}
-                </motion.div>
+                <UsernameField 
+                  value={username}
+                  isActive={activeField === 'username'}
+                  onFocus={() => handleFieldFocus('username')}
+                />
               </div>
 
               {/* Password Field */}
@@ -311,86 +242,21 @@ export default function LoginPage() {
                 <label className="block text-xl font-medium text-gray-200 mb-4">
                   Senha
                 </label>
-                <motion.div
-                  data-focus-key="password-field"
-                  className={`
-                    w-full h-20 px-6 bg-gray-800/80 rounded-2xl text-2xl
-                    border-3 border-transparent transition-all duration-200
-                    focus:border-blue-500 focus:outline-none cursor-pointer
-                    flex items-center gap-4
-                    ${activeField === 'password' ? 'border-blue-500 bg-gray-700/80' : ''}
-                    ${focusedElement === 'password-field' ? 'border-white shadow-lg shadow-white/20' : ''}
-                  `}
-                  tabIndex={0}
-                  onClick={() => handleFieldFocus('password')}
-                  onFocus={() => {
-                    handleFieldFocus('password');
-                    setFocusedElement('password-field');
-                  }}
-                  onBlur={() => setFocusedElement(null)}
-                  onKeyDown={handleKeyDown}
-                  whileFocus={{ scale: 1.02 }}
-                >
-                  <div className="text-gray-400">
-                    {getFieldIcon('password')}
-                  </div>
-                  <div className="flex-1">
-                    {getFieldValue('password') || <span className="text-gray-500">{getFieldPlaceholder('password')}</span>}
-                  </div>
-                  {password && (
-                    <motion.button
-                      data-focus-key="toggle-password"
-                      className="text-gray-400 hover:text-white focus:text-white focus:outline-none p-2 rounded-lg border-2 border-transparent focus:border-white"
-                      onClick={() => setShowPassword(!showPassword)}
-                      onKeyDown={(e) => handleKeyDown(e, 'toggle-password')}
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
-                    >
-                      {showPassword ? <EyeOff className="w-6 h-6" /> : <Eye className="w-6 h-6" />}
-                    </motion.button>
-                  )}
-                  {activeField === 'password' && (
-                    <motion.div
-                      className="w-1 h-8 bg-blue-500 rounded-full"
-                      animate={{ opacity: [1, 0, 1] }}
-                      transition={{ duration: 1, repeat: Infinity }}
-                    />
-                  )}
-                </motion.div>
+                <PasswordField 
+                  value={password}
+                  showPassword={showPassword}
+                  isActive={activeField === 'password'}
+                  onFocus={() => handleFieldFocus('password')}
+                  onTogglePassword={() => setShowPassword(!showPassword)}
+                />
               </div>
 
               {/* Submit Button */}
-              <motion.button
-                data-focus-key="submit-button"
-                className={`
-                  w-full h-20 rounded-2xl text-2xl font-bold
-                  border-3 border-transparent transition-all duration-200
-                  focus:outline-none focus:border-white focus:shadow-lg focus:shadow-white/20
-                  ${serverCode && username && password 
-                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white' 
-                    : 'bg-gray-700 text-gray-400 cursor-not-allowed'}
-                  ${isLoading ? 'opacity-50' : ''}
-                `}
-                onClick={handleSubmit}
-                onKeyDown={(e) => handleKeyDown(e, 'submit')}
-                disabled={!serverCode || !username || !password || isLoading}
-                whileFocus={{ scale: 1.02 }}
-                whileHover={{ scale: serverCode && username && password ? 1.02 : 1 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                {isLoading ? (
-                  <div className="flex items-center justify-center gap-3">
-                    <motion.div
-                      className="w-6 h-6 border-2 border-white border-t-transparent rounded-full"
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                    />
-                    Conectando...
-                  </div>
-                ) : (
-                  'ENTRAR'
-                )}
-              </motion.button>
+              <SubmitButton 
+                isEnabled={!!(serverCode && username && password)}
+                isLoading={isLoading}
+                onSubmit={handleSubmit}
+              />
 
               {/* Error Message */}
               <AnimatePresence>
@@ -421,5 +287,188 @@ export default function LoginPage() {
         </motion.div>
       </div>
     </motion.div>
+  );
+}
+// Componentes focáveis separados
+function ServerField({ value, isActive, onFocus }: { value: string; isActive: boolean; onFocus: () => void }) {
+  const { ref, focused } = useFocusable({
+    focusKey: 'server-field',
+    onEnterPress: onFocus,
+  });
+
+  return (
+    <motion.div
+      ref={ref}
+      className={`
+        w-full h-20 px-6 bg-gray-800/80 rounded-2xl text-2xl
+        border-3 transition-all duration-200 cursor-pointer
+        flex items-center gap-4
+        ${isActive ? 'border-blue-500 bg-gray-700/80' : 'border-transparent'}
+        ${focused ? 'border-white shadow-lg shadow-white/20' : ''}
+      `}
+      onClick={onFocus}
+      whileFocus={{ scale: 1.02 }}
+    >
+      <div className="text-gray-400">
+        <Server className="w-8 h-8" />
+      </div>
+      <div className="flex-1">
+        {value || <span className="text-gray-500">Digite o código do servidor</span>}
+      </div>
+      {isActive && (
+        <motion.div
+          className="w-1 h-8 bg-blue-500 rounded-full"
+          animate={{ opacity: [1, 0, 1] }}
+          transition={{ duration: 1, repeat: Infinity }}
+        />
+      )}
+    </motion.div>
+  );
+}
+
+function UsernameField({ value, isActive, onFocus }: { value: string; isActive: boolean; onFocus: () => void }) {
+  const { ref, focused } = useFocusable({
+    focusKey: 'username-field',
+    onEnterPress: onFocus,
+  });
+
+  return (
+    <motion.div
+      ref={ref}
+      className={`
+        w-full h-20 px-6 bg-gray-800/80 rounded-2xl text-2xl
+        border-3 transition-all duration-200 cursor-pointer
+        flex items-center gap-4
+        ${isActive ? 'border-blue-500 bg-gray-700/80' : 'border-transparent'}
+        ${focused ? 'border-white shadow-lg shadow-white/20' : ''}
+      `}
+      onClick={onFocus}
+      whileFocus={{ scale: 1.02 }}
+    >
+      <div className="text-gray-400">
+        <User className="w-8 h-8" />
+      </div>
+      <div className="flex-1">
+        {value || <span className="text-gray-500">Digite seu usuário</span>}
+      </div>
+      {isActive && (
+        <motion.div
+          className="w-1 h-8 bg-blue-500 rounded-full"
+          animate={{ opacity: [1, 0, 1] }}
+          transition={{ duration: 1, repeat: Infinity }}
+        />
+      )}
+    </motion.div>
+  );
+}
+
+function PasswordField({ value, showPassword, isActive, onFocus, onTogglePassword }: { 
+  value: string; 
+  showPassword: boolean; 
+  isActive: boolean; 
+  onFocus: () => void; 
+  onTogglePassword: () => void; 
+}) {
+  const { ref, focused } = useFocusable({
+    focusKey: 'password-field',
+    onEnterPress: onFocus,
+  });
+
+  const { ref: toggleRef, focused: toggleFocused } = useFocusable({
+    focusKey: 'toggle-password',
+    onEnterPress: onTogglePassword,
+  });
+
+  const displayValue = showPassword ? value : '•'.repeat(value.length);
+
+  return (
+    <motion.div
+      ref={ref}
+      className={`
+        w-full h-20 px-6 bg-gray-800/80 rounded-2xl text-2xl
+        border-3 transition-all duration-200 cursor-pointer
+        flex items-center gap-4
+        ${isActive ? 'border-blue-500 bg-gray-700/80' : 'border-transparent'}
+        ${focused ? 'border-white shadow-lg shadow-white/20' : ''}
+      `}
+      onClick={onFocus}
+      whileFocus={{ scale: 1.02 }}
+    >
+      <div className="text-gray-400">
+        <Lock className="w-8 h-8" />
+      </div>
+      <div className="flex-1">
+        {displayValue || <span className="text-gray-500">Digite sua senha</span>}
+      </div>
+      {value && (
+        <motion.button
+          ref={toggleRef}
+          className={`
+            text-gray-400 hover:text-white p-2 rounded-lg 
+            border-2 transition-all duration-200
+            ${toggleFocused ? 'border-white text-white' : 'border-transparent'}
+          `}
+          onClick={(e) => {
+            e.stopPropagation();
+            onTogglePassword();
+          }}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+        >
+          {showPassword ? <EyeOff className="w-6 h-6" /> : <Eye className="w-6 h-6" />}
+        </motion.button>
+      )}
+      {isActive && (
+        <motion.div
+          className="w-1 h-8 bg-blue-500 rounded-full"
+          animate={{ opacity: [1, 0, 1] }}
+          transition={{ duration: 1, repeat: Infinity }}
+        />
+      )}
+    </motion.div>
+  );
+}
+
+function SubmitButton({ isEnabled, isLoading, onSubmit }: { 
+  isEnabled: boolean; 
+  isLoading: boolean; 
+  onSubmit: () => void; 
+}) {
+  const { ref, focused } = useFocusable({
+    focusKey: 'submit-button',
+    onEnterPress: isEnabled ? onSubmit : undefined,
+  });
+
+  return (
+    <motion.button
+      ref={ref}
+      className={`
+        w-full h-20 rounded-2xl text-2xl font-bold
+        border-3 transition-all duration-200
+        ${focused ? 'border-white shadow-lg shadow-white/20' : 'border-transparent'}
+        ${isEnabled 
+          ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white' 
+          : 'bg-gray-700 text-gray-400 cursor-not-allowed'}
+        ${isLoading ? 'opacity-50' : ''}
+      `}
+      onClick={onSubmit}
+      disabled={!isEnabled || isLoading}
+      whileFocus={{ scale: isEnabled ? 1.02 : 1 }}
+      whileHover={{ scale: isEnabled ? 1.02 : 1 }}
+      whileTap={{ scale: 0.98 }}
+    >
+      {isLoading ? (
+        <div className="flex items-center justify-center gap-3">
+          <motion.div
+            className="w-6 h-6 border-2 border-white border-t-transparent rounded-full"
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          />
+          Conectando...
+        </div>
+      ) : (
+        'ENTRAR'
+      )}
+    </motion.button>
   );
 }

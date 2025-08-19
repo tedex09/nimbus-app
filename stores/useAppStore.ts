@@ -43,6 +43,7 @@ interface AppState {
   
   // Computed values
   getExpirationDate: () => string | null;
+  getConn: () => string | null;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -236,5 +237,11 @@ export const useAppStore = create<AppState>((set, get) => ({
       console.error('Error formatting expiration date:', error);
       return null;
     }
+  },
+
+  getConn: () => {
+    const { userInfo } = get();
+    if (!userInfo?.max_connections) return null;
+    return userInfo?.max_connections;
   },
 }));
