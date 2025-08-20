@@ -77,6 +77,16 @@ export interface Category {
   parent_id?: number;
 }
 
+export interface Channel {
+  num: number;
+  name: string;
+  stream_type: string;
+  stream_id: number;
+  stream_icon: string;
+  epg_channel_id: string;
+  category_id: string;
+}
+
 export const api = {
   async authenticate(serverCode: string, username: string, password: string): Promise<Session> {
     
@@ -218,6 +228,33 @@ export const api = {
       console.error('Falha ao buscar categorias:', error);
       if (error instanceof Error) throw error;
       throw new Error('Erro desconhecido ao buscar categorias');
+    }
+  },
+
+  async getChannels(serverCode: string, username: string, password: string, categoryId: string): Promise<Channel[]> {
+    try {
+      const response = await fetch(`${API_BASE}/api/channels/categories/${categoryId}?server_code=${serverCode}&username=${username}&password=${password}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`Erro ao carregar canais: ${response.status} - ${text}`);
+      }
+
+      const data = await response.json();
+
+      // Normaliza caso seja array direto ou objeto com channels
+      if (Array.isArray(data)) return data as Channel[];
+      if (data.channels && Array.isArray(data.channels)) return data.channels as Channel[];
+      return [];
+    } catch (error) {
+      console.error('Falha ao buscar canais:', error);
+      if (error instanceof Error) throw error;
+      throw new Error('Erro desconhecido ao buscar canais');
     }
   },
 
