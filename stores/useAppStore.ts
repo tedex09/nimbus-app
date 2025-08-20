@@ -124,7 +124,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           const session: Session = {
             serverCode: status.serverCode!,
             username: status.username!,
-            password: '', // não precisamos da senha depois da autorização
+            password: status.password!,
             userInfo: status.userInfo || null,
           };
 

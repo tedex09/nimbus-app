@@ -11,15 +11,11 @@ export default function RootLayout({
 }) {
   useEffect(() => {
     // Register Service Worker
-    if ('serviceWorker' in navigator) {
+    if (process.env.NODE_ENV === 'production' && 'serviceWorker' in navigator) {
       navigator.serviceWorker
         .register('/sw.js')
-        .then((registration) => {
-          console.log('SW registered:', registration);
-        })
-        .catch((error) => {
-          console.log('SW registration failed:', error);
-        });
+        .then(() => console.log('Service Worker registrado'))
+        .catch(err => console.error('Erro ao registrar SW', err));
     }
   }, []);
 

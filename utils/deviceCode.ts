@@ -19,6 +19,7 @@ export interface DeviceCodeStatus {
   tvId: string;
   serverCode?: string;
   username?: string;
+  password?: string;
   userInfo?: any;
   authenticatedAt?: string;
 }

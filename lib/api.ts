@@ -70,6 +70,13 @@ export interface DeviceCodeStatus {
   serverCode?: string;
 }
 
+
+export interface Category {
+  category_id: string;
+  category_name: string;
+  parent_id?: number;
+}
+
 export const api = {
   async authenticate(serverCode: string, username: string, password: string): Promise<Session> {
     
@@ -183,6 +190,34 @@ export const api = {
           showExpiry: true,
         },
       };
+    }
+  },
+
+
+  async getCategories(serverCode: string, username: string, password: string): Promise<Category[]> {
+    try {
+      const response = await fetch(`${API_BASE}/api/channels/categories?server_code=${serverCode}&username=${username}&password=${password}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`Erro ao carregar categorias: ${response.status} - ${text}`);
+      }
+
+      const data = await response.json();
+
+      // Normaliza caso seja array direto ou objeto com categories
+      if (Array.isArray(data)) return data as Category[];
+      if (data.categories && Array.isArray(data.categories)) return data.categories as Category[];
+      return [];
+    } catch (error) {
+      console.error('Falha ao buscar categorias:', error);
+      if (error instanceof Error) throw error;
+      throw new Error('Erro desconhecido ao buscar categorias');
     }
   },
 
