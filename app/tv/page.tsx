@@ -108,7 +108,7 @@ export default function TVPage() {
 
   return (
     <FocusContext.Provider value="">
-      <motion.div className="w-screen h-screen bg-black flex">
+      <motion.div className="w-screen h-screen overflow-hidden  bg-black flex">
         {viewMode === 'categories' ? (
           <CategoryMenu
             categories={categories}

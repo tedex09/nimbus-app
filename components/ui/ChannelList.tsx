@@ -1,9 +1,11 @@
 'use client';
 
-import { useFocusable } from '@noriginmedia/norigin-spatial-navigation';
-import { motion } from 'framer-motion';
-import { ArrowLeft, Tv } from 'lucide-react';
+import { useEffect, useState, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useFocusable, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { Channel } from '@/lib/api';
+import SidebarHeader from '@/components/SidebarHeader';
+import { Check } from 'lucide-react';
 
 interface ChannelListProps {
   channels: Channel[];
@@ -12,6 +14,7 @@ interface ChannelListProps {
   categoryName: string;
   onBack: () => void;
   onChannelSelect: (channel: Channel) => void;
+  selectedChannelId?: number | null;
   className?: string;
 }
 
@@ -22,18 +25,53 @@ export function ChannelList({
   categoryName,
   onBack,
   onChannelSelect,
-  className = ''
+  selectedChannelId,
+  className = '',
 }: ChannelListProps) {
-  const { ref: containerRef } = useFocusable({
+  const { ref: focusRootRef } = useFocusable({
     focusKey: 'channel-list-container',
     isFocusBoundary: true,
   });
 
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [focusedIndex, setFocusedIndex] = useState(0);
+
+  const ITEM_HEIGHT_VW = 6;
+  const GAP_VW = 0.5;
+  const HEADER_OFFSET_VW = 7; // espaço reservado para o header
+
+  // foca no primeiro canal quando a lista carrega
+  useEffect(() => {
+    if (channels.length > 0 && !loading && !error) {
+      setTimeout(() => setFocus('channel-0'), 100);
+    }
+  }, [channels, loading, error]);
+
+  const getTranslateY = () => {
+    if (!containerRef.current || channels.length === 0) return 0;
+
+    const containerHeight = containerRef.current.offsetHeight;
+    const vwToPx = (vw: number) => (vw / 100) * window.innerWidth;
+
+    const itemHeightPx = vwToPx(ITEM_HEIGHT_VW);
+    const gapPx = vwToPx(GAP_VW);
+    const headerOffsetPx = vwToPx(HEADER_OFFSET_VW);
+
+    const totalHeight = channels.length * itemHeightPx + (channels.length - 1) * gapPx;
+
+    let desiredY = focusedIndex * (itemHeightPx + gapPx);
+    const maxTranslate = totalHeight - (containerHeight - headerOffsetPx);
+
+    if (desiredY > maxTranslate) desiredY = maxTranslate;
+
+    return -(desiredY - headerOffsetPx);
+  };
+
   if (loading) {
     return (
-      <div className={`${className} flex flex-col`}>
-        <div className="mb-[2vh]">
-          <BackButton onBack={onBack} />
+      <div ref={focusRootRef} className={`${className} flex flex-col`}>
+        <div className="px-[1vw]">
+          <SidebarHeader onBack={onBack} title={categoryName} />
         </div>
         <div className="flex-1 flex items-center justify-center">
           <motion.div
@@ -50,166 +88,152 @@ export function ChannelList({
 
   if (error) {
     return (
-      <div className={`${className} flex flex-col`}>
-        <div className="mb-[2vh]">
-          <BackButton onBack={onBack} />
+      <div ref={focusRootRef} className={`${className} flex flex-col`}>
+        <div className="px-[1vw]">
+          <SidebarHeader onBack={onBack} title={categoryName} />
         </div>
-        <div className="flex-1 flex flex-col items-center justify-center space-y-[2vh]">
-          <div className="text-[3vh] text-red-400 text-center">{error}</div>
-          <RetryButton onRetry={onBack} />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-[2.5vh] text-red-400 mb-[2vh]">{error}</p>
+            <motion.button
+              className="px-[2vw] py-[1vh] bg-red-600 text-white rounded-[1vh] text-[2vh] font-medium"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={onBack}
+            >
+              Voltar
+            </motion.button>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div ref={containerRef} className={`${className} flex flex-col`}>
-      {/* Header com botão voltar */}
-      <div className="mb-[2vh]">
-        <div className="flex items-center gap-[1vw] mb-[1vh]">
-          <BackButton onBack={onBack} />
+    <div ref={containerRef}>
+      {/* Header fixo no topo */}
+      <div className="top-0 px-[1vw] py-[2vw] relative z-20 bg-black">
+        <SidebarHeader onBack={onBack} title={categoryName} />
+      </div>
+      <div className={`${className} flex flex-col h-full pb-[20vw]`}>
+        {/* Lista ocupa só o espaço abaixo do header */}
+        <div className="flex-1 relative px-[1vw]">
+          <AnimatePresence>
+            {channels.length > 0 && (
+              <motion.div
+                className="space-y-[0.5vw] pb-[1vw]"
+                animate={{ y: getTranslateY() }}
+                transition={{ type: 'tween', duration: 0.25 }}
+                style={{ willChange: 'transform' }}
+              >
+                {channels.map((channel, i) => (
+                  <ChannelItem
+                    key={channel.stream_id}
+                    channel={channel}
+                    index={i}
+                    focusedIndex={focusedIndex}
+                    setFocusedIndex={setFocusedIndex}
+                    onSelect={onChannelSelect}
+                    isSelected={selectedChannelId === channel.stream_id}
+                  />
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
-        <h2 className="text-[2.5vh] font-bold text-white/80 ml-[1vw]">
-          {categoryName} ({channels.length} canais)
-        </h2>
       </div>
 
-      {/* Lista de canais */}
-      <div className="flex-1 overflow-hidden">
-        <div className="h-full overflow-y-auto scrollbar-hide">
-          <div className="space-y-[1vh] pr-[1vw]">
-            {channels.map((channel, index) => (
-              <ChannelItem
-                key={channel.stream_id}
-                channel={channel}
-                focusKey={`channel-${index}`}
-                onSelect={() => onChannelSelect(channel)}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
     </div>
   );
+
 }
 
-function BackButton({ onBack }: { onBack: () => void }) {
-  const { ref, focused } = useFocusable({
-    focusKey: 'back-button',
-    onEnterPress: onBack,
-  });
-
-  return (
-    <motion.button
-      ref={ref}
-      onClick={onBack}
-      className={`
-        flex items-center gap-[0.5vw] px-[1.5vw] py-[0.8vh] rounded-[1.5vw]
-        bg-neutral-800/60 backdrop-blur-sm border-2 transition-all duration-200
-        ${focused ? 'border-white bg-neutral-700/80 scale-105' : 'border-transparent'}
-      `}
-      whileFocus={{ scale: 1.05 }}
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
-    >
-      <ArrowLeft className="w-[2vh] h-[2vh] text-white" />
-      <span className="text-[1.8vh] font-medium text-white">Voltar</span>
-    </motion.button>
-  );
+interface ChannelItemProps {
+  channel: Channel;
+  index: number;
+  focusedIndex: number;
+  setFocusedIndex: (i: number) => void;
+  onSelect: (channel: Channel) => void;
+  isSelected: boolean;
 }
 
-function RetryButton({ onRetry }: { onRetry: () => void }) {
+function ChannelItem({
+  channel,
+  index,
+  focusedIndex,
+  setFocusedIndex,
+  onSelect,
+  isSelected,
+}: ChannelItemProps) {
   const { ref, focused } = useFocusable({
-    focusKey: 'retry-button',
-    onEnterPress: onRetry,
-  });
-
-  return (
-    <motion.button
-      ref={ref}
-      onClick={onRetry}
-      className={`
-        px-[2vw] py-[1vh] rounded-[1.5vw] text-[2vh] font-medium
-        bg-blue-600 text-white border-2 transition-all duration-200
-        ${focused ? 'border-white bg-blue-500 scale-105' : 'border-transparent'}
-      `}
-      whileFocus={{ scale: 1.05 }}
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
-    >
-      Tentar Novamente
-    </motion.button>
-  );
-}
-
-function ChannelItem({ 
-  channel, 
-  focusKey, 
-  onSelect 
-}: { 
-  channel: Channel; 
-  focusKey: string; 
-  onSelect: () => void; 
-}) {
-  const { ref, focused } = useFocusable({
-    focusKey,
-    onEnterPress: onSelect,
+    focusKey: `channel-${index}`,
+    onEnterPress: () => onSelect(channel),
+    onFocus: () => setFocusedIndex(index),
   });
 
   return (
     <motion.div
       ref={ref}
-      onClick={onSelect}
+      layout
       className={`
-        flex items-center gap-[1vw] p-[1vh_1.5vw] rounded-[1.5vw] cursor-pointer
-        bg-neutral-800/40 backdrop-blur-sm border-2 transition-all duration-200
-        ${focused ? 'border-white bg-neutral-700/60 scale-[1.02]' : 'border-transparent'}
+        relative w-full h-[6vw] flex items-center px-[1vw] transition-all duration-200 rounded-[1vw]
+        ${focused
+          ? 'scale-[1.08] z-20 shadow-[0_20px_40px_rgba(0,0,0,0.9)] border-2 border-white bg-white'
+          : 'opacity-70 bg-neutral-800'}
+        ${isSelected ? 'border-blue-500' : ''}
       `}
-      whileFocus={{ scale: 1.02 }}
-      whileHover={{ scale: 1.01 }}
-      whileTap={{ scale: 0.98 }}
+      style={{ overflow: 'visible' }} // garante que o foco ultrapasse o parent
     >
-      {/* Ícone do canal */}
-      <div className="w-[4vh] h-[4vh] rounded-[0.8vh] overflow-hidden bg-neutral-700 flex items-center justify-center flex-shrink-0">
+      {/* Ícone/Logo */}
+      <div className="flex-shrink-0">
         {channel.stream_icon ? (
           <img
             src={channel.stream_icon}
             alt={channel.name}
-            className="w-full h-full object-cover"
+            className="w-[2.4vw] h-[2.4vw] rounded-[0.3vw] object-cover"
             onError={(e) => {
               const target = e.target as HTMLImageElement;
               target.style.display = 'none';
-              const parent = target.parentElement;
-              if (parent) {
-                parent.innerHTML = '<div class="w-[2vh] h-[2vh] text-white/40"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 6h-2l-1.27-1.27c-.4-.4-.94-.73-1.73-.73H8c-.79 0-1.33.33-1.73.73L5 6H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg></div>';
-              }
+              target.nextElementSibling?.classList.remove('hidden');
             }}
           />
-        ) : (
-          <Tv className="w-[2vh] h-[2vh] text-white/40" />
-        )}
+        ) : null}
+        <div
+          className={`w-[3vw] h-[3vw] rounded-[0.3vw] flex items-center justify-center ${
+            channel.stream_icon ? 'hidden' : ''
+          }`}
+        >
+          <span className="text-[1.5vw] font-bold text-white/60">
+            {channel.name.charAt(0).toUpperCase()}
+          </span>
+        </div>
       </div>
 
-      {/* Informações do canal */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-[0.5vw]">
-          <span className="text-[1.2vh] font-medium text-white/60 bg-neutral-700/60 px-[0.5vw] py-[0.2vh] rounded-[0.5vh]">
+      {/* Informações */}
+      <div className="flex-1 min-w-0 ml-[1vw]">
+        <div className="flex items-center gap-[1vw] mt-[0.2vw]">
+          <span
+            className={`
+              text-[1vw] transition-colors duration-300
+              ${focused ? 'text-black' : 'text-white/50'}
+            `}
+          >
             {channel.num}
           </span>
-          <h3 className={`text-[1.8vh] font-medium truncate ${focused ? 'text-white' : 'text-white/80'}`}>
+
+          <h3
+            className={`
+              text-[1.4vw] font-semibold truncate transition-colors duration-300
+              ${focused ? 'text-black' : 'text-white'}
+            `}
+          >
             {channel.name}
           </h3>
         </div>
       </div>
 
-      {/* Indicador de foco */}
-      {focused && (
-        <motion.div
-          className="w-[0.5vw] h-[3vh] bg-white rounded-full"
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.2 }}
-        />
+      {isSelected && (
+        <Check className="absolute right-[1vw] w-[1.5vw] h-[1.5vw] text-blue-400" />
       )}
     </motion.div>
   );

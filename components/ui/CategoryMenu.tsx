@@ -125,13 +125,12 @@ function CategoryItem({
       ref={ref}
       layout
       className={`
-        relative w-full h-[6vw] flex items-center px-[1vw] cursor-pointer transition-all duration-200 rounded-[1vw]
+        relative w-full h-[6vw] flex items-center px-[1vw] transition-all duration-200 rounded-[1vw]
         ${focused
           ? 'scale-[1.08] z-10 shadow-[0_20px_40px_rgba(0,0,0,0.9)] border-2 border-white bg-white'
           : 'opacity-70 bg-neutral-800'}
         ${isSelected ? 'border-blue-500' : ''}
       `}
-      onClick={() => onSelect(category.category_id, category.category_name)}
     >
       <span
         className={`text-[1.8vw] font-medium transition-colors ${
