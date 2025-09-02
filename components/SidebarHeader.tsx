@@ -17,16 +17,13 @@ export default function SidebarHeader({ onBack, title = "Categoria", icon = "/ic
   return (
     <div className="flex items-center gap-[0.2vw]">
       {/* Seta fora do pill */}
-      <motion.div 
-        className="transition-transform duration-100"
-        animate={{ x: focused ? '-0.5vw' : '0vw' }}
-      >
+      <div className={focused ? 'scale-[1.2]' : '' }>
         <img
           src="/icons/back.png"
           className="w-auto h-[1.4vw]"
           alt="Voltar"
         />
-      </motion.div>
+      </div>
 
       {/* Botão pill */}
       <motion.div
