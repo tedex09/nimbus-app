@@ -8,6 +8,7 @@ import { useAppStore } from '@/stores/useAppStore';
 import { api, Channel } from '@/lib/api';
 import { CategoryMenu } from '@/components/ui/CategoryMenu';
 import { ChannelList } from '@/components/ui/ChannelList';
+import { ChannelDetail } from '@/components/ui/ChannelDetail';
 import { Tv } from 'lucide-react';
 
 interface Category {
@@ -27,6 +28,7 @@ export default function TVPage() {
   const [channelsLoading, setChannelsLoading] = useState(false);
   const [channelsError, setChannelsError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'categories' | 'channels'>('categories');
+  const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
@@ -98,9 +100,7 @@ export default function TVPage() {
   }, []);
 
   const handleChannelSelect = useCallback((channel: Channel) => {
-    console.log('Canal selecionado:', channel);
-    // Aqui você pode implementar a lógica para reproduzir o canal
-    // Por exemplo, navegar para uma página de player ou abrir um modal
+    setSelectedChannel(channel);
   }, []);
 
   if (!isInitialized) return <p>Carregando app...</p>;
@@ -131,18 +131,21 @@ export default function TVPage() {
           />
         )}
 
-        {/* Área principal */}
-        <div className="flex-1 flex flex-col items-center justify-center text-neutral-400">
-          <Tv className="w-[10vh] h-[10vh] mb-4 opacity-30" />
-          {viewMode === 'channels' && selectedCategory ? (
-            <div className="text-center">
-              <p className="text-[3vh] mb-2">Categoria: {selectedCategory.category_name}</p>
-              <p className="text-[2vh] text-neutral-500">
-                {channels.length} canais disponíveis
-              </p>
-            </div>
+        {/* Área principal - Detalhes do Canal */}
+        <div className="flex-1 p-[2vw]">
+          {viewMode === 'channels' && session ? (
+            <ChannelDetail
+              channel={selectedChannel}
+              serverCode={session.serverCode}
+              username={session.username}
+              password={session.password}
+              className="h-full"
+            />
           ) : (
-            <p className="text-[3vh]">Selecione uma categoria</p>
+            <div className="flex flex-col items-center justify-center text-neutral-400 h-full">
+              <Tv className="w-[10vh] h-[10vh] mb-4 opacity-30" />
+              <p className="text-[3vh]">Selecione uma categoria</p>
+            </div>
           )}
         </div>
       </motion.div>

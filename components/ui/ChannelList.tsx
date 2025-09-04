@@ -4,7 +4,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useFocusable, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { Channel } from '@/lib/api';
-import { AlertCircle, RefreshCw, Tv } from 'lucide-react';
+import { useAppStore } from '@/stores/useAppStore';
+import { AlertCircle, RefreshCw, Tv, Star } from 'lucide-react';
 import SidebarHeader from '@/components/SidebarHeader';
 
 interface ChannelListProps {
@@ -192,6 +193,8 @@ export function ChannelList({
   onChannelSelect,
   className = '',
 }: ChannelListProps) {
+  const { toggleFavoriteChannel, isFavoriteChannel } = useAppStore();
+  const [focusedChannelId, setFocusedChannelId] = useState<number | null>(null);
   const [focusedIndex, setFocusedIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -307,15 +310,36 @@ export function ChannelList({
                 style={{ willChange: 'transform' }}
               >
                 {channels.map((channel, index) => (
-                  <ChannelItem
-                    key={`${channel.stream_id}-${index}`}
-                    channel={channel}
-                    index={index}
-                    onSelect={handleChannelSelect}
-                    focusKey={`channel-item-${index}`}
-                    focusedIndex={focusedIndex}
-                    onFocus={setFocusedIndex}
-                  />
+                  <div key={`${channel.stream_id}-${index}`} className="relative">
+                    <ChannelItem
+                      channel={channel}
+                      index={index}
+                      onSelect={handleChannelSelect}
+                      focusKey={`channel-item-${index}`}
+                      focusedIndex={focusedIndex}
+                      onFocus={setFocusedIndex}
+                    />
+                    
+                    {/* Botão de Favorito */}
+                    <AnimatePresence>
+                      {focusedChannelId === channel.stream_id && (
+                        <motion.div
+                          className="absolute right-[1vw] top-1/2 transform -translate-y-1/2"
+                          initial={{ opacity: 0, x: 20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: 20 }}
+                          transition={{ duration: 0.2 }}
+                        >
+                          <FavoriteButton
+                            channelId={channel.stream_id}
+                            isFavorite={isFavoriteChannel(channel.stream_id)}
+                            onToggle={() => toggleFavoriteChannel(channel.stream_id)}
+                            focusKey={`favorite-${index}`}
+                          />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
                 ))}
               </motion.div>
             </div>
@@ -323,5 +347,35 @@ export function ChannelList({
         </AnimatePresence>
       </div>
     </motion.div>
+  );
+}
+
+function FavoriteButton({ channelId, isFavorite, onToggle, focusKey }: {
+  channelId: number;
+  isFavorite: boolean;
+  onToggle: () => void;
+  focusKey: string;
+}) {
+  const { ref, focused } = useFocusable({
+    focusKey,
+    onEnterPress: onToggle,
+  });
+
+  return (
+    <motion.button
+      ref={ref}
+      className={`
+        w-[3vw] h-[3vw] rounded-full flex items-center justify-center
+        border-2 transition-all duration-200
+        ${isFavorite ? 'bg-yellow-500 text-white' : 'bg-gray-700 text-gray-400'}
+        ${focused ? 'border-white scale-110' : 'border-transparent'}
+      `}
+      onClick={onToggle}
+      whileFocus={{ scale: 1.2 }}
+      whileHover={{ scale: 1.1 }}
+      whileTap={{ scale: 0.9 }}
+    >
+      <Star className={`w-[1.5vw] h-[1.5vw] ${isFavorite ? 'fill-current' : ''}`} />
+    </motion.button>
   );
 }

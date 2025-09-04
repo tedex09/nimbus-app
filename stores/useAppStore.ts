@@ -21,6 +21,7 @@ interface AppState {
   error: string | null;
   deviceCode: DeviceCodeRequestType | null;
   deviceCodePolling: boolean;
+  favoriteChannels: number[];
   
   // Actions
   setSession: (session: Session | null) => void;
@@ -30,6 +31,8 @@ interface AppState {
   setError: (error: string | null) => void;
   setDeviceCode: (deviceCode: DeviceCodeRequestType | null) => void;
   setDeviceCodePolling: (polling: boolean) => void;
+  toggleFavoriteChannel: (channelId: number) => void;
+  loadFavorites: () => Promise<void>;
   
   // Async actions
   login: (serverCode: string, username: string, password: string) => Promise<void>;
@@ -44,6 +47,7 @@ interface AppState {
   // Computed values
   getExpirationDate: () => string | null;
   getConn: () => string | null;
+  isFavoriteChannel: (channelId: number) => boolean;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -54,6 +58,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   error: null,
   deviceCode: null,
   deviceCodePolling: false,
+  favoriteChannels: [],
 
   setSession: (session) => set({ session }),
   setLayout: (layout) => set({ layout }),
@@ -62,6 +67,38 @@ export const useAppStore = create<AppState>((set, get) => ({
   setError: (error) => set({ error }),
   setDeviceCode: (deviceCode) => set({ deviceCode }),
   setDeviceCodePolling: (deviceCodePolling) => set({ deviceCodePolling }),
+
+  toggleFavoriteChannel: async (channelId) => {
+    const { favoriteChannels } = get();
+    const newFavorites = favoriteChannels.includes(channelId)
+      ? favoriteChannels.filter(id => id !== channelId)
+      : [...favoriteChannels, channelId];
+    
+    set({ favoriteChannels: newFavorites });
+    
+    // Salvar no localStorage
+    try {
+      await persistentStorage.setItem('nimbus.favorites', JSON.stringify(newFavorites));
+    } catch (error) {
+      console.error('Failed to save favorites:', error);
+    }
+  },
+
+  loadFavorites: async () => {
+    try {
+      const data = await persistentStorage.getItem('nimbus.favorites');
+      if (data) {
+        const favorites = JSON.parse(data);
+        set({ favoriteChannels: favorites });
+      }
+    } catch (error) {
+      console.error('Failed to load favorites:', error);
+    }
+  },
+
+  isFavoriteChannel: (channelId) => {
+    return get().favoriteChannels.includes(channelId);
+  },
 
   login: async (serverCode, username, password) => {
     set({ isLoading: true, error: null });
@@ -216,6 +253,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         });
         await get().loadLayout(session.serverCode);
       }
+      await get().loadFavorites();
     } catch (error) {
       console.error('Failed to initialize app:', error);
     } finally {

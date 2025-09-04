@@ -50,6 +50,7 @@ class LocalStorageAdapter implements StorageAdapter {
   }
 }
 
+// Escolhe o adapter correto dependendo do ambiente
 const storage: StorageAdapter = typeof window !== 'undefined' 
   ? new IndexedDBAdapter() 
   : new LocalStorageAdapter();
@@ -120,5 +121,18 @@ export const persistentStorage = {
     } catch (error) {
       console.error('Failed to remove user info:', error);
     }
+  },
+
+  // Métodos utilitários diretos
+  async getItem(key: string) {
+    return await storage.getItem(key);
+  },
+
+  async setItem(key: string, value: string) {
+    return await storage.setItem(key, value);
+  },
+
+  async removeItem(key: string) {
+    return await storage.removeItem(key);
   }
 };
