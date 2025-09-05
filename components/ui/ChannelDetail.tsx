@@ -26,6 +26,16 @@ interface EPGProgram {
   progress?: number;
 }
 
+interface Program {
+  id: string;
+  title: string;
+  description: string;
+  startTime: string;
+  endTime: string;
+  duration: number;
+  category: string;
+}
+
 type StreamFormat = 'hls' | 'ts';
 type AspectRatio = '16:9' | '4:3' | 'zoom' | 'stretch';
 
@@ -43,6 +53,7 @@ export function ChannelDetail({ channel, serverCode, username, password, classNa
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('16:9');
   const [selectedDay, setSelectedDay] = useState(0);
   const [selectedProgramIndex, setSelectedProgramIndex] = useState(0);
+  const [currentProgramIndex, setCurrentProgramIndex] = useState(0);
 
   // Container focusable
   const { ref: containerRef } = useFocusable({
@@ -101,7 +112,24 @@ export function ChannelDetail({ channel, serverCode, username, password, classNa
     return programs;
   }, []);
 
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to focused program
+  const scrollToProgram = useCallback((index: number) => {
+    if (scrollContainerRef.current) {
+      const container = scrollContainerRef.current;
+      const cardWidth = container.offsetWidth * 0.25; // 25vw
+      const scrollPosition = index * (cardWidth + container.offsetWidth * 0.01); // card width + 1vw gap
+      
+      container.scrollTo({
+        left: scrollPosition,
+        behavior: 'smooth'
+      });
+    }
+  }, []);
+
   const [epgData, setEpgData] = useState<EPGProgram[]>([]);
+  const [programs, setPrograms] = useState<Program[]>([]);
 
   useEffect(() => {
     setEpgData(generateEPGData(selectedDay));
@@ -309,18 +337,40 @@ export function ChannelDetail({ channel, serverCode, username, password, classNa
         </motion.div>
       </div>
 
-      {/* Seletor de Dias Centralizado */}
-      <div className="flex justify-center mb-[2vh]">
-        <div className="flex gap-[1vw] bg-neutral-800/60 rounded-[1vw] p-[0.5vw] backdrop-blur-sm">
-          {days.map((day, index) => (
-            <DaySelector
-              key={day.value}
-              day={day}
-              isSelected={selectedDay === day.value}
-              onSelect={() => setSelectedDay(day.value)}
-              focusKey={`day-${index}`}
-            />
-          ))}
+      <div className="flex-1 overflow-hidden">
+        <h3 className="text-[2.2vw] font-bold text-white mb-[1vh]">Programação</h3>
+        
+        {/* Horizontal Scroll Container */}
+        <div className="relative">
+          {/* Left gradient fade */}
+          <div className="absolute left-0 top-0 bottom-0 w-[4vw] bg-gradient-to-r from-black to-transparent z-10 pointer-events-none" />
+          
+          {/* Right gradient fade */}
+          <div className="absolute right-0 top-0 bottom-0 w-[4vw] bg-gradient-to-l from-black to-transparent z-10 pointer-events-none" />
+          
+          {/* Scrollable container */}
+          <div 
+            ref={scrollContainerRef}
+            className="flex gap-[1vw] overflow-x-auto scrollbar-hide pb-[1vh] transform-gpu"
+            style={{
+              scrollBehavior: 'smooth',
+              scrollSnapType: 'x mandatory'
+            }}
+          >
+            {programs.map((program, index) => (
+              <ProgramCardHorizontal
+                key={program.id}
+                program={program}
+                isSelected={index === currentProgramIndex}
+                isCurrent={program.isLive}
+                onSelect={() => {
+                  setCurrentProgramIndex(index);
+                  scrollToProgram(index);
+                }}
+                focusKey={`program-${index}`}
+              />
+            ))}
+          </div>
         </div>
       </div>
 
@@ -625,31 +675,78 @@ function FullscreenPlayer({
                 {isMuted ? <VolumeX className="w-8 h-8" /> : <Volume2 className="w-8 h-8" />}
               </motion.button>
             </div>
-
-            {/* Format Controls */}
-            <div className="flex items-center gap-4">
-              <select
-                value={streamFormat}
-                onChange={(e) => onStreamFormatChange(e.target.value as StreamFormat)}
-                className="bg-black/50 text-white p-2 rounded border border-neutral-600 focus:border-white"
-              >
-                <option value="hls">HLS (.m3u8)</option>
-                <option value="ts">TS (.ts)</option>
-              </select>
-
-              <select
-                value={aspectRatio}
-                onChange={(e) => onAspectRatioChange(e.target.value as AspectRatio)}
-                className="bg-black/50 text-white p-2 rounded border border-neutral-600 focus:border-white"
-              >
-                <option value="16:9">16:9</option>
-                <option value="4:3">4:3</option>
-                <option value="zoom">Zoom</option>
-                <option value="stretch">Stretch</option>
-              </select>
-            </div>
           </div>
         </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// New horizontal program card component
+function ProgramCardHorizontal({ program, isSelected, isCurrent, onSelect, focusKey }: {
+  program: Program;
+  isSelected: boolean;
+  isCurrent?: boolean;
+  onSelect: () => void;
+  focusKey: string;
+}) {
+  const { ref, focused } = useFocusable({
+    focusKey,
+    onEnterPress: onSelect,
+  });
+
+  return (
+    <motion.div
+      ref={ref}
+      className={`
+        flex-shrink-0 w-[25vw] p-[1.5vw] rounded-[1.5vw] cursor-pointer
+        transition-all duration-300 transform-gpu
+        ${isCurrent 
+          ? 'bg-white/90 text-black scale-105' 
+          : isSelected 
+            ? 'bg-neutral-800/80 text-white opacity-100' 
+            : 'bg-neutral-800/60 text-white opacity-60'}
+        ${focused ? 'ring-4 ring-white/50 scale-110' : ''}
+      `}
+      style={{
+        scrollSnapAlign: 'start'
+      }}
+      onClick={onSelect}
+      whileFocus={{ scale: focused ? 1.1 : (isCurrent ? 1.05 : 1) }}
+      whileHover={{ scale: isCurrent ? 1.05 : 1.02 }}
+      whileTap={{ scale: 0.98 }}
+    >
+      <div className="flex items-start justify-between mb-[1vh]">
+        <div className="flex items-center gap-[0.8vw]">
+          <span className={`text-[1.3vw] font-bold ${isCurrent ? 'text-black' : 'text-white'}`}>
+            {program.startTime}
+          </span>
+          {isCurrent && (
+            <div className="bg-red-600 text-white px-[0.8vw] py-[0.2vw] rounded-full text-[1vw] font-bold">
+              LIVE
+            </div>
+          )}
+        </div>
+        <span className={`text-[1.1vw] ${isCurrent ? 'text-black/70' : 'text-neutral-400'}`}>
+          {program.duration}min
+        </span>
+      </div>
+      
+      <h4 className={`text-[1.7vw] font-bold mb-[0.8vh] line-clamp-2 ${isCurrent ? 'text-black' : 'text-white'}`}>
+        {program.title}
+      </h4>
+      
+      <p className={`text-[1.3vw] line-clamp-3 mb-[1vh] ${isCurrent ? 'text-black/80' : 'text-neutral-300'}`}>
+        {program.description}
+      </p>
+      
+      <div className="flex items-center justify-between">
+        <span className={`text-[1.1vw] ${isCurrent ? 'text-black/70' : 'text-neutral-400'}`}>
+          {program.category}
+        </span>
+        <span className={`text-[1.1vw] ${isCurrent ? 'text-black/70' : 'text-neutral-400'}`}>
+          {program.endTime}
+        </span>
       </div>
     </motion.div>
   );
