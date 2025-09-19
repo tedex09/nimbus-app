@@ -25,10 +25,12 @@ interface ChannelItemProps {
   focusKey: string;
   focusedIndex: number;
   onFocus: (index: number) => void;
+  visibleCount: number;
+  totalChannels: number;
 }
 
 /* =========================
-   Channel Item (memoized, sem `layout`)
+   Channel Item
    ========================= */
 function ChannelItemInner({
   channel,
@@ -37,6 +39,8 @@ function ChannelItemInner({
   focusKey,
   focusedIndex,
   onFocus,
+  visibleCount,
+  totalChannels,
 }: ChannelItemProps) {
   const { ref, focused } = useFocusable({
     focusKey,
@@ -51,7 +55,6 @@ function ChannelItemInner({
   const textRef = useRef<HTMLDivElement>(null);
   const [shouldScroll, setShouldScroll] = useState(false);
 
-  // Detecta se o texto é maior que o container
   useEffect(() => {
     if (focused && textRef.current) {
       const { scrollWidth, clientWidth } = textRef.current;
@@ -65,22 +68,30 @@ function ChannelItemInner({
     const target = e.currentTarget;
     target.style.display = 'none';
     const parent = target.parentElement;
-    if (parent) {
-      parent.innerHTML = '<div class="text-neutral-400"></div>';
-    }
+    if (parent) parent.innerHTML = '<div class="text-neutral-400"></div>';
   }, []);
+
+  // Controle de opacidade
+  const isAbove = index < focusedIndex;
+  const startIndexOfVisible = totalChannels - visibleCount;
+  const onLastPage = focusedIndex >= startIndexOfVisible;
+  const itemOpacity = focused ? 1 : onLastPage ? 1 : isAbove ? 0.4 : 1;
 
   return (
     <motion.div
       ref={ref}
       className={`
-        relative w-full h-[6vw] flex items-center gap-[1vw] px-[1vw] transition-all duration-200 rounded-[1vw] cursor-pointer
-        ${focused ? 'scale-[1.04] z-10 shadow-[0_20px_40px_rgba(0,0,0,0.9)] border-2 border-white bg-white' : 'bg-neutral-800/40'}
+        relative w-full h-[6vw] flex items-center gap-[1vw] px-[1vw] rounded-[1vw] cursor-pointer
+        ${focused ? 'scale-[1.04] z-10 shadow-[0_20px_40px_rgba(0,0,0,0.9)] bg-white' : 'bg-black/40'}
       `}
       onClick={() => onSelect(channel)}
       initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.25, delay: index * 0.02 }}
+      animate={{
+        opacity: itemOpacity,
+        x: 0,
+        scale: focused ? 1.04 : 1,
+      }}
+      transition={{ duration: 0 }}
     >
       {/* Logo */}
       <div className="flex items-center justify-center w-[4vw] h-[4vw] min-w-[4vw] rounded-[0.3vw] overflow-hidden bg-neutral-900/10">
@@ -117,20 +128,15 @@ function ChannelItemInner({
   );
 }
 
-// memo para evitar re-renders desnecessários que podem acionar layout changes
 const ChannelItem = React.memo(ChannelItemInner);
 
 /* =========================
-   States (Loading / Error / Empty)
+   States
    ========================= */
-
 function LoadingState() {
   return (
     <div className="flex flex-col items-center justify-center py-[4vw] text-neutral-400">
-      <motion.div
-        animate={{ rotate: 360 }}
-        transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-      >
+      <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}>
         <RefreshCw className="w-[3.2vw] h-[3.2vw] mb-[1vw]" />
       </motion.div>
       <p className="text-[1.4vw]">Carregando canais...</p>
@@ -153,9 +159,10 @@ function ErrorState({ error, onRetry }: { error: string; onRetry?: () => void })
           ref={ref}
           className={`
             px-[2vw] py-[1vw] rounded-[1vw] text-[1.2vw] font-medium
-            bg-red-600 text-white border-[0.2vw] transition-all duration-200
+            relative w-full p-[1vw] rounded-[1vw] transition-all duration-200
             ${focused ? 'border-white shadow-lg' : 'border-transparent'}
           `}
+          style={{ zIndex: focused ? 10 : 1 }}
           onClick={onRetry}
           whileFocus={{ scale: 1.05 }}
           whileHover={{ scale: 1.05 }}
@@ -181,9 +188,8 @@ function EmptyState() {
 }
 
 /* =========================
-   ChannelList (com rolagem igual ao CategoryMenu)
+   ChannelList principal
    ========================= */
-
 export function ChannelList({
   channels,
   loading,
@@ -199,11 +205,12 @@ export function ChannelList({
   const containerRef = useRef<HTMLDivElement>(null);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Valores em vw
+  // número de itens visíveis
+  const [visibleCount, setVisibleCount] = useState(0);
+
   const ITEM_HEIGHT = 6; // vw
   const GAP = 0.5; // vw
 
-  // Container foco raiz (trackChildren true para delegar foco aos itens)
   const { ref: containerFocusRef } = useFocusable({
     focusKey: 'channel-list-container',
     isFocusBoundary: true,
@@ -211,7 +218,17 @@ export function ChannelList({
     trackChildren: true,
   });
 
-  // Foca o primeiro item quando a lista carrega (apenas no primeiro load)
+  // calcula quantos itens cabem visíveis
+  useEffect(() => {
+    if (containerRef.current) {
+      const containerHeight = containerRef.current.offsetHeight;
+      const itemHeightPx = (ITEM_HEIGHT / 100) * window.innerWidth;
+      const gapPx = (GAP / 100) * window.innerWidth;
+      const rowHeight = itemHeightPx + gapPx;
+      setVisibleCount(Math.floor(containerHeight / rowHeight));
+    }
+  }, [channels.length]);
+
   useEffect(() => {
     if (!loading && !error && channels.length > 0 && !isInitialized) {
       const timer = setTimeout(() => {
@@ -222,12 +239,10 @@ export function ChannelList({
     }
   }, [loading, error, channels.length, isInitialized]);
 
-  // Reseta inicialização ao trocar categoria
   useEffect(() => {
     setIsInitialized(false);
   }, [categoryName]);
 
-  // Lógica de rolagem (igual ao CategoryMenu)
   const getTranslateY = useCallback(() => {
     if (!containerRef.current || channels.length === 0) return 0;
     const containerHeight = containerRef.current.offsetHeight;
@@ -252,51 +267,34 @@ export function ChannelList({
   return (
     <motion.div
       ref={containerFocusRef}
-      className={`flex flex-col ${className}`}
+      className={`flex flex-col overflow-visible ${className}`}
       initial={{ opacity: 0, x: -50 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.4 }}
+      style={{ overflow: 'visible' }}
     >
       {/* Header */}
-      <div className="flex-shrink-0 p-[2vw] pb-[1vw]">
+      <div className="pb-[1vw]">
         <SidebarHeader onBack={onBack} title={categoryName} icon="/icons/tv.png" />
       </div>
 
       {/* Conteúdo */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-visible">
         <AnimatePresence mode="wait">
           {loading && (
-            <motion.div
-              key="loading"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-            >
+            <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
               <LoadingState />
             </motion.div>
           )}
 
           {error && !loading && (
-            <motion.div
-              key="error"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-            >
+            <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
               <ErrorState error={error} />
             </motion.div>
           )}
 
           {!loading && !error && channels.length === 0 && (
-            <motion.div
-              key="empty"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-            >
+            <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
               <EmptyState />
             </motion.div>
           )}
@@ -304,13 +302,13 @@ export function ChannelList({
           {!loading && !error && channels.length > 0 && (
             <div ref={containerRef} className="relative h-full overflow-visible px-[2vw]">
               <motion.div
-                className="absolute top-0 left-0 w-full space-y-[0.5vw]"
+                className="absolute top-0 left-0 w-full space-y-[0.5vw] overflow-visible"
                 animate={{ y: getTranslateY() }}
                 transition={{ type: 'tween', duration: 0.25 }}
-                style={{ willChange: 'transform' }}
+                style={{ willChange: 'transform', overflow: 'visible' }}
               >
                 {channels.map((channel, index) => (
-                  <div key={`${channel.stream_id}-${index}`} className="relative">
+                  <div key={`${channel.stream_id}-${index}`} className="relative overflow-visible">
                     <ChannelItem
                       channel={channel}
                       index={index}
@@ -318,13 +316,14 @@ export function ChannelList({
                       focusKey={`channel-item-${index}`}
                       focusedIndex={focusedIndex}
                       onFocus={setFocusedIndex}
+                      visibleCount={visibleCount}
+                      totalChannels={channels.length}
                     />
-                    
-                    {/* Botão de Favorito */}
+
                     <AnimatePresence>
                       {focusedChannelId === channel.stream_id && (
                         <motion.div
-                          className="absolute right-[1vw] top-1/2 transform -translate-y-1/2"
+                          className="absolute right-[1vw] top-1/2 transform -translate-y-1/2 z-30"
                           initial={{ opacity: 0, x: 20 }}
                           animate={{ opacity: 1, x: 0 }}
                           exit={{ opacity: 0, x: 20 }}
@@ -350,7 +349,12 @@ export function ChannelList({
   );
 }
 
-function FavoriteButton({ channelId, isFavorite, onToggle, focusKey }: {
+function FavoriteButton({
+  channelId,
+  isFavorite,
+  onToggle,
+  focusKey,
+}: {
   channelId: number;
   isFavorite: boolean;
   onToggle: () => void;
@@ -368,7 +372,7 @@ function FavoriteButton({ channelId, isFavorite, onToggle, focusKey }: {
         w-[3vw] h-[3vw] rounded-full flex items-center justify-center
         border-2 transition-all duration-200
         ${isFavorite ? 'bg-yellow-500 text-white' : 'bg-gray-700 text-gray-400'}
-        ${focused ? 'border-white scale-110' : 'border-transparent'}
+        ${focused ? 'border-white scale-110 z-30' : 'border-transparent'}
       `}
       onClick={onToggle}
       whileFocus={{ scale: 1.2 }}

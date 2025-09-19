@@ -19,7 +19,7 @@ interface Category {
 
 export default function TVPage() {
   const router = useRouter();
-  const { session, initializeApp } = useAppStore();
+  const { session, layout, initializeApp } = useAppStore();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -106,9 +106,25 @@ export default function TVPage() {
   if (!isInitialized) return <p>Carregando app...</p>;
   if (!session) return <p>Redirecionando...</p>;
 
+  // Configurar background dinâmico baseado no layout
+  const backgroundStyle = layout?.backgroundImageUrl
+    ? {
+        backgroundImage: `url(${layout.backgroundImageUrl})`,
+        backgroundSize: 'cover',
+        backgroundRepeat: 'no-repeat',
+        backgroundPosition: 'center',
+        backgroundAttachment: 'fixed'
+      }
+    : {
+        backgroundColor: layout?.colors?.background || '#000000'
+      };
+
   return (
     <FocusContext.Provider value="">
-      <motion.div className="w-screen h-screen overflow-hidden  bg-black flex">
+      <motion.div 
+        className="w-screen h-screen overflow-hidden flex"
+        style={backgroundStyle}
+      >
         {viewMode === 'categories' ? (
           <CategoryMenu
             categories={categories}

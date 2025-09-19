@@ -78,6 +78,7 @@ export interface Category {
 }
 
 export interface Channel {
+  url: any;
   num: number;
   name: string;
   stream_type: string;
