@@ -252,15 +252,17 @@ useEffect(() => {
       </div>
 
       {/* Day Menu */}
-      <div className="flex justify-center mb-6 gap-2">
+      <div className="flex justify-center mb-6">
+        <div className="flex justify-center items-center bg-black/40 w-[45vw] p-[0.6vw] rounded-[2vw] gap-2">
         {dayOptions.map(opt => (
           <DayButton key={opt.value} option={opt} isSelected={selectedDay === opt.value} onSelect={() => setSelectedDay(opt.value)} />
         ))}
+        </div>
       </div>
 
       {/* Programação Horizontal */}
       <div className="flex-1 overflow-hidden">
-        <h3 className="text-[2.2vw] font-bold text-white mb-2">Programação - {dayOptions[selectedDay].label}</h3>
+        <h3 className="text-[1.8vw] font-bold text-white mb-2">Programação</h3>
         <div className="relative">
           <div className="absolute right-0 top-0 bottom-0 w-[4vw] bg-gradient-to-l from-black to-transparent z-10 pointer-events-none" />
           <div
@@ -342,11 +344,11 @@ function DayButton({
       ref={ref}
       onClick={onSelect}
       className={`
-        flex-shrink-0 px-[1vw] py-[0.5vw] rounded-[0.4vw] text-[1.2vw] transition-all duration-200
+        flex-shrink-0 px-[1.2vw] py-[0.5vw] rounded-[2vw] text-[1.2vw] transition-all duration-200
         min-w-fit whitespace-nowrap
         ${isSelected 
           ? 'bg-white/40 text-black font-bold' 
-          : 'bg-black/40 text-white font-light'}
+          : 'text-white font-light'}
         ${focused ? '!bg-white !text-black' : ''}
       `}
       whileFocus={{ scale: 1.05 }}
@@ -375,20 +377,15 @@ function ProgramCardHorizontal({ program, isSelected, isCurrent, onSelect, focus
     <motion.div
       ref={ref}
       onClick={onSelect}
-      className={`flex-shrink-0 w-[25vw] p-4 rounded-lg cursor-pointer transition-all ${isCurrent ? 'bg-white/90 text-black scale-105' : isSelected ? 'bg-neutral-800/80 text-white' : 'bg-neutral-800/60 text-white'} ${focused ? 'ring-4 ring-white/50 scale-110' : ''}`}
+      className={`flex-shrink-0 w-[30vw] p-[1vw] rounded-[1vw] transition-all ${isCurrent ? 'bg-white/90 text-black' : isSelected ? 'bg-black/50 text-white' : 'bg-black/30 text-white'} ${focused ? 'bg-white !text-black' : ''}`}
       style={{ scrollSnapAlign: 'start' }}
       whileFocus={{ scale: focused ? 1.1 : 1 }}
     >
       <div className="flex justify-between mb-2">
-        <span>{time}</span>
-        {isCurrent && <div className="bg-red-600 text-white px-2 py-1 rounded-full text-xs font-bold">LIVE</div>}
+        <span className='text-[1vw] font-thin'>{time} - {end}</span>
+        {isCurrent && <div className="bg-red-600 text-white rounded-full text-xs font-bold">LIVE</div>}
       </div>
-      <h4 className="font-bold mb-1 line-clamp-2">{program.title}</h4>
-      <p className="text-sm line-clamp-3 mb-1">{program.description}</p>
-      <div className="flex justify-between text-xs text-neutral-400">
-        <span>{program.category}</span>
-        <span>{end}</span>
-      </div>
+      <h4 className="font-bold mb-1 line-clamp-2 text-[1.3vw]">{program.title}</h4>
     </motion.div>
   );
 }

@@ -31,14 +31,14 @@ export default function SidebarHeader({
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.25 }}
     >
-      {/*
-      <div className="flex items-center justify-center w-[4vw] h-[4vw] min-w-[4vw] p-[1vw] rounded-full overflow-hidden bg-neutral-900/10">
+      
+      <div className="flex items-center justify-center w-[4vw] h-[4vw] min-w-[4vw] p-[1vw] overflow-hidden">
         <img
           src="/icons/back.png"
           className="w-full h-full object-contain"
           alt="Voltar"  
         />
-      </div> */}
+      </div>
 
       {/* Texto */}
       <div
