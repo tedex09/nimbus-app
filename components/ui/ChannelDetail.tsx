@@ -65,59 +65,43 @@ export function ChannelDetail({ channel, serverCode, username, password, classNa
     return () => clearInterval(timer);
   }, []);
 
-  // Fetch EPG real
+  // Gera programação mock
+  const generatePrograms = useCallback((): Program[] => {
+    if (!channel) return [];
+
+    const baseDate = new Date();
+    baseDate.setDate(baseDate.getDate() + selectedDay);
+    baseDate.setHours(6, 0, 0, 0);
+
+    const categories = ['Notícias', 'Entretenimento', 'Filme', 'Série', 'Documentário', 'Esporte'];
+    return Array.from({ length: 18 }).map((_, i) => {
+      const startTime = new Date(baseDate);
+      startTime.setHours(6 + i);
+      const endTime = new Date(startTime);
+      endTime.setHours(startTime.getHours() + 1);
+
+      const category = categories[Math.floor(Math.random() * categories.length)];
+      const isLive = selectedDay === 0 && currentTime >= startTime && currentTime < endTime;
+      const progress = isLive ? ((currentTime.getTime() - startTime.getTime()) / (endTime.getTime() - startTime.getTime())) * 100 : undefined;
+
+      return {
+        id: `${channel.stream_id}-${selectedDay}-${i}`,
+        title: `${category} ${i + 1}`,
+        description: `Descrição do programa ${category.toLowerCase()} ${i + 1}`,
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
+        category,
+        duration: 60,
+        isLive,
+        progress,
+      };
+    });
+  }, [channel, currentTime, selectedDay]);
+
   useEffect(() => {
-    if (!channel) return;
-    const fetchEPG = async () => {
-      try {
-        const today = new Date();
-        today.setDate(today.getDate() + selectedDay);
-        const dateStr = today.toISOString().split('T')[0];
-
-        const res = await fetch(`${API_BASE}/api/epg/${channel.stream_id}?server_code=${serverCode}&username=${username}&password=${password}`);
-        const data = await res.json();
-        if (!data?.epg_listings) return;
-
-        const mappedPrograms: Program[] = data.epg_listings.map((p: any) => {
-          const startTime = new Date(p.start_timestamp * 1000).toISOString();
-          const endTime = new Date(p.stop_timestamp * 1000).toISOString();
-          const now = Math.floor(Date.now() / 1000);
-          const isLive = p.start_timestamp <= now && p.stop_timestamp >= now;
-          const progress = isLive ? ((now - p.start_timestamp) / (p.stop_timestamp - p.start_timestamp)) * 100 : undefined;
-
-          return {
-            id: p.id,
-            title: p.title,
-            description: p.description,
-            startTime,
-            endTime,
-            category: p.category || '',
-            duration: (p.stop_timestamp - p.start_timestamp) / 60,
-            isLive,
-            progress,
-          };
-        });
-
-        setPrograms(mappedPrograms);
-
-        // Atualiza index do programa atual para auto-scroll
-        const currentIndex = mappedPrograms.findIndex(p => p.isLive);
-        setCurrentProgramIndex(currentIndex >= 0 ? currentIndex : 0);
-
-        // Auto-scroll para o programa atual
-        setTimeout(() => {
-          if (scrollContainerRef.current && currentIndex >= 0) {
-            const child = scrollContainerRef.current.children[currentIndex] as HTMLElement;
-            child?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
-          }
-        }, 100);
-      } catch (err) {
-        console.error('Erro ao buscar EPG:', err);
-      }
-    };
-
-    fetchEPG();
-  }, [channel, serverCode, username, password, selectedDay]);
+    setPrograms(generatePrograms());
+    setCurrentProgramIndex(0);
+  }, [generatePrograms]);
 
   const filteredPrograms = useMemo(() => {
     if (selectedDay === 0) return programs.filter(p => new Date(p.endTime) > currentTime);
@@ -140,36 +124,77 @@ export function ChannelDetail({ channel, serverCode, username, password, classNa
   }, [channel, serverCode, username, password]);
 
   // Configuração do vídeo HLS
-  useEffect(() => {
-    if (!videoRef.current || !channel?.url) return;
-    const video = videoRef.current;
-    setIsLoading(true);
-    setHasError(false);
+useEffect(() => {
+  if (!videoRef.current || !channel?.url) return;
 
-    const setupVideo = async () => {
-      try {
-        const { default: Hls } = await import('hls.js');
-        if (Hls.isSupported() && channel.url.endsWith('.m3u8')) {
-          hlsRef.current?.destroy();
-          const hls = new Hls({ enableWorker: false, lowLatencyMode: true, backBufferLength: 90 });
-          hlsRef.current = hls;
-          hls.loadSource(channel.url);
-          hls.attachMedia(video);
-          hls.on(Hls.Events.MANIFEST_PARSED, () => { setIsLoading(false); video.muted = true; video.play().catch(console.error); });
-          hls.on(Hls.Events.ERROR, (_, data) => { console.error('HLS Error:', data); setHasError(true); setIsLoading(false); });
-        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-          video.src = channel.url; video.muted = true; await video.play().catch(() => setHasError(true)); setIsLoading(false);
-        } else { console.error('HLS not supported'); setHasError(true); setIsLoading(false); }
-      } catch (err) { console.error('Video setup error:', err); setHasError(true); setIsLoading(false); }
-    };
+  const video = videoRef.current;
+  setIsLoading(true);
+  setHasError(false);
 
-    setupVideo();
-    return () => { hlsRef.current?.destroy(); hlsRef.current = null; };
-  }, [channel]);
+  const setupVideo = async () => {
+    try {
+      const { default: Hls } = await import('hls.js');
+
+      if (Hls.isSupported() && channel.url.endsWith('.m3u8')) {
+        hlsRef.current?.destroy();
+
+        const hls = new Hls({
+          enableWorker: false,
+          lowLatencyMode: true,
+          backBufferLength: 90,
+        });
+        hlsRef.current = hls;
+
+        hls.loadSource(channel.url);
+        hls.attachMedia(video);
+
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          setIsLoading(false);
+          video.muted = true; // necessário para autoplay
+          video.play().catch(console.error);
+        });
+
+        hls.on(Hls.Events.ERROR, (_, data) => {
+          console.error('HLS Error:', data);
+          setHasError(true);
+          setIsLoading(false);
+        });
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = channel.url;
+        video.muted = true;
+        await video.play().catch(() => setHasError(true));
+        setIsLoading(false);
+      } else {
+        console.error('HLS not supported');
+        setHasError(true);
+        setIsLoading(false);
+      }
+    } catch (err) {
+      console.error('Video setup error:', err);
+      setHasError(true);
+      setIsLoading(false);
+    }
+  };
+
+  setupVideo();
+
+  return () => {
+    hlsRef.current?.destroy();
+    hlsRef.current = null;
+  };
+}, [channel]);
 
   const togglePlayPause = useCallback(() => { if (videoRef.current) { isPlaying ? videoRef.current.pause() : videoRef.current.play().catch(console.error); setIsPlaying(!isPlaying); } }, [isPlaying]);
   const toggleMute = useCallback(() => { if (videoRef.current) { videoRef.current.muted = !isMuted; setIsMuted(!isMuted); } }, [isMuted]);
-  const getAspectRatioClass = useCallback(() => { switch (aspectRatio) { case '4:3': return 'aspect-[4/3]'; case 'zoom': return 'object-cover scale-110'; case 'stretch': return 'object-fill'; default: return 'aspect-video'; } }, [aspectRatio]);
+
+  const getAspectRatioClass = useCallback(() => {
+    switch (aspectRatio) {
+      case '4:3': return 'aspect-[4/3]';
+      case 'zoom': return 'object-cover scale-110';
+      case 'stretch': return 'object-fill';
+      default: return 'aspect-video';
+    }
+  }, [aspectRatio]);
 
   if (!channel) return (
     <div ref={containerRef} className={`flex flex-col items-center justify-center text-neutral-400 ${className}`}>
@@ -180,6 +205,25 @@ export function ChannelDetail({ channel, serverCode, username, password, classNa
 
   return (
     <div ref={containerRef} className={`relative ${className}`}>
+      {/* Fullscreen */}
+      <AnimatePresence>
+        {isFullscreen && (
+          <FullscreenPlayer
+            channel={channel}
+            videoRef={videoRef}
+            isPlaying={isPlaying}
+            isMuted={isMuted}
+            isLoading={isLoading}
+            hasError={hasError}
+            streamFormat={streamFormat}
+            aspectRatio={aspectRatio}
+            onClose={() => setIsFullscreen(false)}
+            onTogglePlay={togglePlayPause}
+            onToggleMute={toggleMute}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Preview */}
       <div className="flex justify-center mb-6">
         <motion.div
@@ -202,6 +246,7 @@ export function ChannelDetail({ channel, serverCode, username, password, classNa
             {isLoading && <OverlayLoading />}
             {hasError && <OverlayError />}
             <ChannelInfoOverlay channel={channel} />
+            {previewFocused && <PreviewFocusHint />}
           </div>
         </motion.div>
       </div>
@@ -243,16 +288,147 @@ export function ChannelDetail({ channel, serverCode, username, password, classNa
 }
 
 /* COMPONENTES AUXILIARES */
-function OverlayLoading() { return (<div className="absolute inset-0 bg-black/80 flex items-center justify-center"><Loader2 className="w-12 h-12 text-white animate-spin" /></div>); }
-function OverlayError() { return (<div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center text-white"><AlertCircle className="w-12 h-12 text-red-400 mb-2" /><p className="text-lg">Erro ao carregar stream</p></div>); }
-function ChannelInfoOverlay({ channel }: { channel: Channel }) { return (<div className="absolute top-2 left-2 bg-black/70 rounded p-2 backdrop-blur-sm flex items-center gap-2">{channel.stream_icon && <img src={channel.stream_icon} alt={channel.name} className="w-6 h-6 rounded" />}<div><h3 className="text-white font-bold text-sm">{channel.name}</h3></div></div>); }
-function DayButton({ option, isSelected, onSelect }: { option: { value: number; label: string; date?: Date }; isSelected: boolean; onSelect: () => void }) {
-  const { ref, focused } = useFocusable({ focusKey: `day-${option.value}`, onEnterPress: onSelect });
-  return (<motion.button ref={ref} onClick={onSelect} className={`flex-shrink-0 px-[1.2vw] py-[0.5vw] rounded-[2vw] text-[1.2vw] transition-all duration-200 min-w-fit whitespace-nowrap ${isSelected ? 'bg-white/40 text-black font-bold' : 'text-white font-light'} ${focused ? '!bg-white !text-black' : ''}`} whileFocus={{ scale: 1.05 }}>{option.label}</motion.button>);
+function OverlayLoading() {
+  return (
+    <div className="absolute inset-0 bg-black/80 flex items-center justify-center">
+      <Loader2 className="w-12 h-12 text-white animate-spin" />
+    </div>
+  );
 }
-function ProgramCardHorizontal({ program, isSelected, isCurrent, onSelect, focusKey }: { program: Program; isSelected: boolean; isCurrent?: boolean; onSelect: () => void; focusKey: string }) {
+
+function OverlayError() {
+  return (
+    <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center text-white">
+      <AlertCircle className="w-12 h-12 text-red-400 mb-2" />
+      <p className="text-lg">Erro ao carregar stream</p>
+    </div>
+  );
+}
+
+function ChannelInfoOverlay({ channel }: { channel: Channel }) {
+  return (
+    <div className="absolute top-2 left-2 bg-black/70 rounded p-2 backdrop-blur-sm flex items-center gap-2">
+      {channel.stream_icon && <img src={channel.stream_icon} alt={channel.name} className="w-6 h-6 rounded" />}
+      <div>
+        <h3 className="text-white font-bold text-sm">{channel.name}</h3>
+      </div>
+    </div>
+  );
+}
+
+function PreviewFocusHint() {
+  return (
+    <div className="absolute bottom-2 right-2 bg-white/20 rounded p-1 backdrop-blur-sm text-white text-xs flex items-center gap-1">
+      <Maximize2 className="w-3 h-3" /> Enter para tela cheia
+    </div>
+  );
+}
+
+// Botão de Dia
+function DayButton({ 
+  option, 
+  isSelected, 
+  onSelect 
+}: { 
+  option: { value: number; label: string; date: Date }; 
+  isSelected: boolean; 
+  onSelect: () => void; 
+}) {
+  const { ref, focused } = useFocusable({
+    focusKey: `day-${option.value}`,
+    onEnterPress: onSelect,
+  });
+
+  return (
+    <motion.button
+      ref={ref}
+      onClick={onSelect}
+      className={`
+        flex-shrink-0 px-[1.2vw] py-[0.5vw] rounded-[2vw] text-[1.2vw] transition-all duration-200
+        min-w-fit whitespace-nowrap
+        ${isSelected 
+          ? 'bg-white/40 text-black font-bold' 
+          : 'text-white font-light'}
+        ${focused ? '!bg-white !text-black' : ''}
+      `}
+      whileFocus={{ scale: 1.05 }}
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+    >
+      {option.label}
+    </motion.button>
+  );
+}
+
+
+// Card horizontal simplificado
+function ProgramCardHorizontal({ program, isSelected, isCurrent, onSelect, focusKey }: {
+  program: Program;
+  isSelected: boolean;
+  isCurrent?: boolean;
+  onSelect: () => void;
+  focusKey: string;
+}) {
   const { ref, focused } = useFocusable({ focusKey, onEnterPress: onSelect });
   const time = new Date(program.startTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   const end = new Date(program.endTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  return (<motion.div ref={ref} onClick={onSelect} className={`flex-shrink-0 w-[30vw] p-[1vw] rounded-[1vw] transition-all ${isCurrent ? 'bg-white/90 text-black' : isSelected ? 'bg-black/50 text-white' : 'bg-black/30 text-white'} ${focused ? 'bg-white !text-black' : ''}`} style={{ scrollSnapAlign: 'start' }} whileFocus={{ scale: focused ? 1.1 : 1 }}><div className="flex justify-between mb-2"><span className='text-[1vw] font-thin'>{time} - {end}</span>{isCurrent && <div className="bg-red-600 text-white rounded-full text-xs font-bold">LIVE</div>}</div><h4 className="font-bold mb-1 line-clamp-2 text-[1.3vw]">{program.title}</h4></motion.div>);
+
+  return (
+    <motion.div
+      ref={ref}
+      onClick={onSelect}
+      className={`flex-shrink-0 w-[30vw] p-[1vw] rounded-[1vw] transition-all ${isCurrent ? 'bg-white/90 text-black' : isSelected ? 'bg-black/50 text-white' : 'bg-black/30 text-white'} ${focused ? 'bg-white !text-black' : ''}`}
+      style={{ scrollSnapAlign: 'start' }}
+      whileFocus={{ scale: focused ? 1.1 : 1 }}
+    >
+      <div className="flex justify-between mb-2">
+        <span className='text-[1vw] font-thin'>{time} - {end}</span>
+        {isCurrent && <div className="bg-red-600 text-white rounded-full text-xs font-bold">LIVE</div>}
+      </div>
+      <h4 className="font-bold mb-1 line-clamp-2 text-[1.3vw]">{program.title}</h4>
+    </motion.div>
+  );
+}
+
+// Fullscreen Player simplificado
+function FullscreenPlayer({
+  channel, videoRef, isPlaying, isMuted, isLoading, hasError,
+  streamFormat, aspectRatio, onClose, onTogglePlay, onToggleMute
+}: any) {
+  const { ref: fullscreenRef } = useFocusable({ focusKey: 'fullscreen-container', isFocusBoundary: true });
+  const { ref: closeRef, focused: closeFocused } = useFocusable({ focusKey: 'fullscreen-close', onEnterPress: onClose });
+  const { ref: playRef, focused: playFocused } = useFocusable({ focusKey: 'fullscreen-play', onEnterPress: onTogglePlay });
+  const { ref: muteRef, focused: muteFocused } = useFocusable({ focusKey: 'fullscreen-mute', onEnterPress: onToggleMute });
+
+  return (
+    <motion.div ref={fullscreenRef} className="fixed inset-0 bg-black z-50 flex items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+      <div className="relative w-full h-full">
+        <video ref={videoRef} className="w-full h-full object-contain" autoPlay muted={isMuted} playsInline controls={false} />
+        {isLoading && <OverlayLoading />}
+        {hasError && <OverlayError />}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/80">
+          <div className="absolute top-8 left-8 right-8 flex justify-between items-center">
+            <div className="flex items-center gap-4">
+              {channel.stream_icon && <img src={channel.stream_icon} alt={channel.name} className="w-16 h-16 rounded-lg" />}
+              <div>
+                <h2 className="text-3xl font-bold text-white">{channel.name}</h2>
+                <p className="text-xl text-neutral-300">Canal {channel.num}</p>
+              </div>
+            </div>
+            <motion.button ref={closeRef} onClick={onClose} className={`p-4 rounded-full bg-black/50 text-white border-2 transition-all ${closeFocused ? 'border-white scale-110' : 'border-transparent'}`} whileFocus={{ scale: 1.1 }}>
+              <Minimize2 className="w-8 h-8" />
+            </motion.button>
+          </div>
+          <div className="absolute bottom-8 left-8 right-8 flex items-center gap-4">
+            <motion.button ref={playRef} onClick={onTogglePlay} className={`p-4 rounded-full bg-black/50 text-white border-2 transition-all ${playFocused ? 'border-white scale-110' : 'border-transparent'}`} whileFocus={{ scale: 1.1 }}>
+              {isPlaying ? <Pause className="w-8 h-8" /> : <Play className="w-8 h-8" />}
+            </motion.button>
+            <motion.button ref={muteRef} onClick={onToggleMute} className={`p-4 rounded-full bg-black/50 text-white border-2 transition-all ${muteFocused ? 'border-white scale-110' : 'border-transparent'}`} whileFocus={{ scale: 1.1 }}>
+              {isMuted ? <VolumeX className="w-8 h-8" /> : <Volume2 className="w-8 h-8" />}
+            </motion.button>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
 }
