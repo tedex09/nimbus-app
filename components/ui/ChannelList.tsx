@@ -227,6 +227,7 @@ export function ChannelList({
   const { ref: containerFocusRef } = useFocusable({
     focusKey: 'channel-list-container',
     isFocusBoundary: true,
+    focusBoundaryDirections: ['left', 'up', 'down'],
     saveLastFocusedChild: true,
     trackChildren: true,
   });

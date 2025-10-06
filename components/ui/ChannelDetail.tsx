@@ -54,9 +54,24 @@ export function ChannelDetail({
   const [currentTime, setCurrentTime] = useState(new Date());
   const [currentProgramIndex, setCurrentProgramIndex] = useState(0);
 
+  const filteredPrograms = useMemo(() => {
+    if (selectedDay === 0) return programs.filter(p => new Date(p.endTime) > currentTime);
+    return programs;
+  }, [programs, currentTime, selectedDay]);
+
+  const preferredFocusKey = useMemo(() => {
+    if (filteredPrograms.length > 0) {
+      return 'program-0';
+    }
+    return 'day-0';
+  }, [filteredPrograms.length]);
+
   const { ref: containerRef } = useFocusable({
     focusKey: 'channel-detail-container',
-    isFocusBoundary: false
+    isFocusBoundary: true,
+    focusBoundaryDirections: ['right'],
+    preferredChildFocusKey: preferredFocusKey,
+    saveLastFocusedChild: true
   });
 
   const { ref: previewRef, focused: previewFocused } = useFocusable({
@@ -173,11 +188,6 @@ export function ChannelDetail({
       setIsFullscreen(true);
     }
   }, [isFullscreenActive]);
-
-  const filteredPrograms = useMemo(() => {
-    if (selectedDay === 0) return programs.filter(p => new Date(p.endTime) > currentTime);
-    return programs;
-  }, [programs, currentTime, selectedDay]);
 
   const dayOptions = useMemo(() => {
     const today = new Date();

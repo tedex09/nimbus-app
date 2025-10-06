@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useFocusable, setFocus } from '@noriginmedia/norigin-spatial-navigation';
-import { Loader2, AlertCircle, Check, Tv } from 'lucide-react';
+import { Loader as Loader2, CircleAlert as AlertCircle, Check, Tv } from 'lucide-react';
 
 interface Category {
   category_id: string;
@@ -41,6 +41,7 @@ export function CategoryMenu({
   const { ref: focusRootRef } = useFocusable({
     focusKey: 'category-menu',
     isFocusBoundary: true,
+    focusBoundaryDirections: ['left', 'up', 'down'],
   });
 
   useEffect(() => {
