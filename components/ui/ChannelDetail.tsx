@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { useFocusable, FocusContext } from '@noriginmedia/norigin-spatial-navigation';
+import { useFocusable, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 // @ts-ignore
 import shaka from 'shaka-player';
 import { Play, Pause, Volume2, VolumeX, Maximize2, Minimize2, Tv, CircleAlert as AlertCircle, Loader as Loader2 } from 'lucide-react';
@@ -54,13 +54,15 @@ export function ChannelDetail({
   const [currentTime, setCurrentTime] = useState(new Date());
   const [currentProgramIndex, setCurrentProgramIndex] = useState(0);
 
-  const { ref: containerRef, focusKey } = useFocusable({
-    focusKey: 'channel-detail-container'
+  const { ref: containerRef } = useFocusable({
+    focusKey: 'channel-detail-container',
+    isFocusBoundary: false
   });
 
   const { ref: previewRef, focused: previewFocused } = useFocusable({
     focusKey: 'channel-preview',
     onEnterPress: () => setIsFullscreen(prev => !prev),
+    saveLastFocusedChild: false
   });
 
   useEffect(() => {
@@ -227,91 +229,89 @@ export function ChannelDetail({
   }
 
   return (
-    <FocusContext.Provider value={focusKey}>
-      <div ref={containerRef} className={`relative ${className}`}>
-        {isFullscreen && (
-          <FullscreenPlayer
-            channel={channel}
-            videoRef={videoRef}
-            isPlaying={isPlaying}
-            isMuted={isMuted}
-            isLoading={isLoading}
-            hasError={hasError}
-            onClose={handleCloseFullscreen}
-            onTogglePlay={togglePlayPause}
-            onToggleMute={toggleMute}
-          />
-        )}
+    <div ref={containerRef} className={`relative ${className}`}>
+      {isFullscreen && (
+        <FullscreenPlayer
+          channel={channel}
+          videoRef={videoRef}
+          isPlaying={isPlaying}
+          isMuted={isMuted}
+          isLoading={isLoading}
+          hasError={hasError}
+          onClose={handleCloseFullscreen}
+          onTogglePlay={togglePlayPause}
+          onToggleMute={toggleMute}
+        />
+      )}
 
-        <div className="flex justify-center mb-6">
-          <motion.div
-            ref={previewRef}
-            className={`
-              relative w-[45vw] bg-black rounded-[1vw] overflow-hidden border-[0.3vw]
-              transition-all duration-300
-              ${previewFocused ? 'border-white shadow-[0_0_3vw_rgba(255,255,255,0.5)]' : 'border-neutral-700'}
-            `}
-            whileFocus={{ scale: 1.02 }}
-          >
-            <div className={`relative ${getAspectRatioClass()}`}>
-              <video
-                ref={videoRef}
-                className="w-full h-full object-contain"
-                autoPlay
-                muted={isMuted}
-                playsInline
-              />
-              {isLoading && <OverlayLoading />}
-              {hasError && <OverlayError />}
-              <ChannelInfoOverlay channel={channel} />
-              {previewFocused && <PreviewFocusHint />}
-            </div>
-          </motion.div>
-        </div>
-
-        <div className="flex justify-center mb-6">
-          <div className="flex justify-center items-center bg-black/40 w-[45vw] p-[0.6vw] rounded-[2vw] gap-2">
-            {dayOptions.map(opt => (
-              <DayButton
-                key={opt.value}
-                option={opt}
-                isSelected={selectedDay === opt.value}
-                onSelect={() => setSelectedDay(opt.value)}
-              />
-            ))}
+      <div className="flex justify-center mb-6">
+        <motion.div
+          ref={previewRef}
+          className={`
+            relative w-[45vw] bg-black rounded-[1vw] overflow-hidden border-[0.3vw]
+            transition-all duration-300
+            ${previewFocused ? 'border-white shadow-[0_0_3vw_rgba(255,255,255,0.5)]' : 'border-neutral-700'}
+          `}
+          whileFocus={{ scale: 1.02 }}
+        >
+          <div className={`relative ${getAspectRatioClass()}`}>
+            <video
+              ref={videoRef}
+              className="w-full h-full object-contain"
+              autoPlay
+              muted={isMuted}
+              playsInline
+            />
+            {isLoading && <OverlayLoading />}
+            {hasError && <OverlayError />}
+            <ChannelInfoOverlay channel={channel} />
+            {previewFocused && <PreviewFocusHint />}
           </div>
-        </div>
+        </motion.div>
+      </div>
 
-        <div className="flex-1 overflow-hidden">
-          <h3 className="text-[1.8vw] font-bold text-white mb-2">Programação</h3>
-          <div className="relative">
-            <div className="absolute right-0 top-0 bottom-0 w-[4vw] bg-gradient-to-l from-black to-transparent z-10 pointer-events-none" />
-            <div
-              ref={scrollContainerRef}
-              className="flex w-[65vw] gap-2 overflow-x-auto scrollbar-hide pl-1"
-              style={{ scrollBehavior: 'smooth', scrollSnapType: 'x mandatory' }}
-            >
-              {filteredPrograms.length > 0 ? (
-                filteredPrograms.map((p, i) => (
-                  <ProgramCardHorizontal
-                    key={p.id}
-                    program={p}
-                    isSelected={i === currentProgramIndex}
-                    isCurrent={p.isLive}
-                    onSelect={() => setCurrentProgramIndex(i)}
-                    focusKey={`program-${i}`}
-                  />
-                ))
-              ) : (
-                <div className="text-neutral-400 w-full text-center py-4">
-                  Nenhuma programação encontrada para este dia.
-                </div>
-              )}
-            </div>
+      <div className="flex justify-center mb-6">
+        <div className="flex justify-center items-center bg-black/40 w-[45vw] p-[0.6vw] rounded-[2vw] gap-2">
+          {dayOptions.map(opt => (
+            <DayButton
+              key={opt.value}
+              option={opt}
+              isSelected={selectedDay === opt.value}
+              onSelect={() => setSelectedDay(opt.value)}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-hidden">
+        <h3 className="text-[1.8vw] font-bold text-white mb-2">Programação</h3>
+        <div className="relative">
+          <div className="absolute right-0 top-0 bottom-0 w-[4vw] bg-gradient-to-l from-black to-transparent z-10 pointer-events-none" />
+          <div
+            ref={scrollContainerRef}
+            className="flex w-[65vw] gap-2 overflow-x-auto scrollbar-hide pl-1"
+            style={{ scrollBehavior: 'smooth', scrollSnapType: 'x mandatory' }}
+          >
+            {filteredPrograms.length > 0 ? (
+              filteredPrograms.map((p, i) => (
+                <ProgramCardHorizontal
+                  key={p.id}
+                  program={p}
+                  isSelected={i === currentProgramIndex}
+                  isCurrent={p.isLive}
+                  onSelect={() => setCurrentProgramIndex(i)}
+                  focusKey={`program-${i}`}
+                />
+              ))
+            ) : (
+              <div className="text-neutral-400 w-full text-center py-4">
+                Nenhuma programação encontrada para este dia.
+              </div>
+            )}
           </div>
         </div>
       </div>
-    </FocusContext.Provider>
+    </div>
   );
 }
 
@@ -459,7 +459,9 @@ function FullscreenPlayer({
 }) {
   const { ref: fullscreenRef } = useFocusable({
     focusKey: 'fullscreen-container',
-    isFocusBoundary: true
+    isFocusBoundary: true,
+    focusBoundaryDirections: ['left', 'right', 'up', 'down'],
+    preferredChildFocusKey: 'fullscreen-play'
   });
 
   const { ref: closeRef, focused: closeFocused } = useFocusable({
@@ -476,6 +478,13 @@ function FullscreenPlayer({
     focusKey: 'fullscreen-mute',
     onEnterPress: onToggleMute
   });
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setFocus('fullscreen-play');
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <motion.div
