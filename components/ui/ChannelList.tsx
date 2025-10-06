@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useFocusable, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { Channel } from '@/lib/api';
 import { useAppStore } from '@/stores/useAppStore';
-import { AlertCircle, RefreshCw, Tv, Star } from 'lucide-react';
+import { CircleAlert as AlertCircle, RefreshCw, Tv, Star } from 'lucide-react';
 import SidebarHeader from '@/components/SidebarHeader';
 
 interface ChannelListProps {

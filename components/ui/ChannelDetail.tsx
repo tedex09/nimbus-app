@@ -5,9 +5,7 @@ import { motion } from 'framer-motion';
 import { useFocusable } from '@noriginmedia/norigin-spatial-navigation';
 // @ts-ignore
 import shaka from 'shaka-player';
-import { 
-  Play, Pause, Volume2, VolumeX, Maximize2, Minimize2, Tv, AlertCircle, Loader2 
-} from 'lucide-react';
+import { Play, Pause, Volume2, VolumeX, Maximize2, Minimize2, Tv, CircleAlert as AlertCircle, Loader as Loader2 } from 'lucide-react';
 import { Channel, api } from '@/lib/api';
 import { useAppStore } from '@/stores/useAppStore';
 
