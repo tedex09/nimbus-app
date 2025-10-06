@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useFocusable, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { Channel } from '@/lib/api';
@@ -216,6 +216,7 @@ export function ChannelList({
   className = '',
 }: ChannelListProps) {
   const { toggleFavoriteChannel, isFavoriteChannel } = useAppStore();
+  const { lastFocusedChannelKey } = useFocusStore();
   const [focusedChannelId, setFocusedChannelId] = useState<number | null>(null);
   const [focusedIndex, setFocusedIndex] = useState(0);
   const [selectedChannelId, setSelectedChannelId] = useState<number | null>(null);
@@ -228,10 +229,21 @@ export function ChannelList({
   const ITEM_HEIGHT = 6; // vw
   const GAP = 0.5; // vw
 
+  const preferredChannelKey = useMemo(() => {
+    if (lastFocusedChannelKey && channels.length > 0) {
+      const keyIndex = parseInt(lastFocusedChannelKey.split('-').pop() || '0');
+      if (keyIndex < channels.length) {
+        return lastFocusedChannelKey;
+      }
+    }
+    return 'channel-item-0';
+  }, [lastFocusedChannelKey, channels.length]);
+
   const { ref: containerFocusRef } = useFocusable({
     focusKey: 'channel-list-container',
     isFocusBoundary: true,
     focusBoundaryDirections: ['left', 'up', 'down'],
+    preferredChildFocusKey: preferredChannelKey,
     saveLastFocusedChild: true,
     trackChildren: true,
   });
@@ -250,12 +262,12 @@ export function ChannelList({
   useEffect(() => {
     if (!loading && !error && channels.length > 0 && !isInitialized) {
       const timer = setTimeout(() => {
-        setFocus('channel-item-0');
+        setFocus(preferredChannelKey);
         setIsInitialized(true);
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [loading, error, channels.length, isInitialized]);
+  }, [loading, error, channels.length, isInitialized, preferredChannelKey]);
 
   useEffect(() => {
     setIsInitialized(false);
