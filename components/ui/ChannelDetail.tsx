@@ -53,7 +53,7 @@ export function ChannelDetail({
   const [selectedDay, setSelectedDay] = useState(0);
   const [programs, setPrograms] = useState<Program[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [currentProgramIndex, setCurrentProgramIndex] = useState(0);
+  const [selectedProgramIndex, setSelectedProgramIndex] = useState(0);
 
   const { lastFocusedProgramKey, lastFocusedChannelKey } = useFocusStore();
 
@@ -62,18 +62,14 @@ export function ChannelDetail({
     return programs;
   }, [programs, currentTime, selectedDay]);
 
+  const currentLiveProgramIndex = useMemo(() => {
+    const idx = filteredPrograms.findIndex(p => p.isLive);
+    return idx >= 0 ? idx : 0;
+  }, [filteredPrograms]);
+
   const currentProgramKey = useMemo(() => {
-    const currentProgram = filteredPrograms.find((p) => {
-      const start = new Date(p.startTime);
-      const end = new Date(p.endTime);
-      return currentTime >= start && currentTime <= end;
-    });
-    if (currentProgram) {
-      const idx = filteredPrograms.indexOf(currentProgram);
-      return `program-${idx}`;
-    }
-    return 'program-0';
-  }, [filteredPrograms, currentTime]);
+    return `program-${currentLiveProgramIndex}`;
+  }, [currentLiveProgramIndex]);
 
   const { ref: containerRef } = useFocusable({
     focusKey: 'channel-detail-container',
@@ -89,11 +85,12 @@ export function ChannelDetail({
     saveLastFocusedChild: false,
     onArrowPress: (direction) => {
       if (direction === 'down' && filteredPrograms.length > 0) {
-        setFocus(currentProgramKey);
+        const targetKey = currentProgramKey;
+        setTimeout(() => setFocus(targetKey), 50);
         return true;
       }
       if (direction === 'left' && lastFocusedChannelKey) {
-        setFocus(lastFocusedChannelKey);
+        setTimeout(() => setFocus(lastFocusedChannelKey), 50);
         return true;
       }
       return false;
@@ -327,9 +324,9 @@ export function ChannelDetail({
                 <ProgramCardHorizontal
                   key={p.id}
                   program={p}
-                  isSelected={i === currentProgramIndex}
+                  isSelected={i === selectedProgramIndex}
                   isCurrent={p.isLive}
-                  onSelect={() => setCurrentProgramIndex(i)}
+                  onSelect={() => setSelectedProgramIndex(i)}
                   focusKey={`program-${i}`}
                 />
               ))
@@ -438,6 +435,16 @@ function ProgramCardHorizontal({
       setLastFocusedProgramKey(focusKey);
     }
   });
+
+  useEffect(() => {
+    if (focused && ref.current) {
+      ref.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'center'
+      });
+    }
+  }, [focused, ref]);
 
   const time = new Date(program.startTime).toLocaleTimeString('pt-BR', {
     hour: '2-digit',
