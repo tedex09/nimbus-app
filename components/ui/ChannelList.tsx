@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useFocusable, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { Channel } from '@/lib/api';
 import { useAppStore } from '@/stores/useAppStore';
-import { AlertCircle, RefreshCw, Tv, Star } from 'lucide-react';
+import { CircleAlert as AlertCircle, RefreshCw, Tv, Star } from 'lucide-react';
 import SidebarHeader from '@/components/SidebarHeader';
 
 interface ChannelListProps {
@@ -15,6 +15,7 @@ interface ChannelListProps {
   categoryName: string;
   onBack: () => void;
   onChannelSelect: (channel: Channel) => void;
+  onChannelActivate?: (channel: Channel) => void;
   className?: string;
 }
 
@@ -22,11 +23,13 @@ interface ChannelItemProps {
   channel: Channel;
   index: number;
   onSelect: (channel: Channel) => void;
+  onActivate?: (channel: Channel) => void;
   focusKey: string;
   focusedIndex: number;
   onFocus: (index: number) => void;
   visibleCount: number;
   totalChannels: number;
+  isSelected: boolean;
 }
 
 /* =========================
@@ -36,15 +39,23 @@ function ChannelItemInner({
   channel,
   index,
   onSelect,
+  onActivate,
   focusKey,
   focusedIndex,
   onFocus,
   visibleCount,
   totalChannels,
+  isSelected,
 }: ChannelItemProps) {
   const { ref, focused } = useFocusable({
     focusKey,
-    onEnterPress: () => onSelect(channel),
+    onEnterPress: () => {
+      if (isSelected && onActivate) {
+        onActivate(channel);
+      } else {
+        onSelect(channel);
+      }
+    },
     saveLastFocusedChild: false,
     trackChildren: false,
     onFocus: () => {
@@ -197,11 +208,13 @@ export function ChannelList({
   categoryName,
   onBack,
   onChannelSelect,
+  onChannelActivate,
   className = '',
 }: ChannelListProps) {
   const { toggleFavoriteChannel, isFavoriteChannel } = useAppStore();
   const [focusedChannelId, setFocusedChannelId] = useState<number | null>(null);
   const [focusedIndex, setFocusedIndex] = useState(0);
+  const [selectedChannelId, setSelectedChannelId] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isInitialized, setIsInitialized] = useState(false);
 
@@ -241,6 +254,7 @@ export function ChannelList({
 
   useEffect(() => {
     setIsInitialized(false);
+    setSelectedChannelId(null);
   }, [categoryName]);
 
   const getTranslateY = useCallback(() => {
@@ -259,6 +273,7 @@ export function ChannelList({
 
   const handleChannelSelect = useCallback(
     (channel: Channel) => {
+      setSelectedChannelId(channel.stream_id);
       onChannelSelect(channel);
     },
     [onChannelSelect]
@@ -313,11 +328,13 @@ export function ChannelList({
                       channel={channel}
                       index={index}
                       onSelect={handleChannelSelect}
+                      onActivate={onChannelActivate}
                       focusKey={`channel-item-${index}`}
                       focusedIndex={focusedIndex}
                       onFocus={setFocusedIndex}
                       visibleCount={visibleCount}
                       totalChannels={channels.length}
+                      isSelected={channel.stream_id === selectedChannelId}
                     />
 
                     <AnimatePresence>

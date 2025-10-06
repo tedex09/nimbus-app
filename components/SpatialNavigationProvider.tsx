@@ -13,6 +13,7 @@ export function SpatialNavigationProvider({ children }: SpatialNavigationProvide
     init({
       debug: false,
       visualDebug: false,
+      distanceCalculationMethod: 'center',
     });
   }, []);
 
