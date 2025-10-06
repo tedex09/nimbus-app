@@ -29,7 +29,7 @@ interface ChannelItemProps {
   onFocus: (index: number) => void;
   visibleCount: number;
   totalChannels: number;
-  isFocused: boolean;
+  isSelected: boolean;
 }
 
 /* =========================
@@ -45,12 +45,12 @@ function ChannelItemInner({
   onFocus,
   visibleCount,
   totalChannels,
-  isFocused,
+  isSelected,
 }: ChannelItemProps) {
   const { ref, focused } = useFocusable({
     focusKey,
     onEnterPress: () => {
-      if (isFocused && onActivate) {
+      if (isSelected && onActivate) {
         onActivate(channel);
       } else {
         onSelect(channel);
@@ -214,6 +214,7 @@ export function ChannelList({
   const { toggleFavoriteChannel, isFavoriteChannel } = useAppStore();
   const [focusedChannelId, setFocusedChannelId] = useState<number | null>(null);
   const [focusedIndex, setFocusedIndex] = useState(0);
+  const [selectedChannelId, setSelectedChannelId] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isInitialized, setIsInitialized] = useState(false);
 
@@ -253,6 +254,7 @@ export function ChannelList({
 
   useEffect(() => {
     setIsInitialized(false);
+    setSelectedChannelId(null);
   }, [categoryName]);
 
   const getTranslateY = useCallback(() => {
@@ -271,6 +273,7 @@ export function ChannelList({
 
   const handleChannelSelect = useCallback(
     (channel: Channel) => {
+      setSelectedChannelId(channel.stream_id);
       onChannelSelect(channel);
     },
     [onChannelSelect]
@@ -331,7 +334,7 @@ export function ChannelList({
                       onFocus={setFocusedIndex}
                       visibleCount={visibleCount}
                       totalChannels={channels.length}
-                      isFocused={index === focusedIndex}
+                      isSelected={channel.stream_id === selectedChannelId}
                     />
 
                     <AnimatePresence>
