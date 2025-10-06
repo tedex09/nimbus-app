@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { FocusContext, init } from '@noriginmedia/norigin-spatial-navigation';
+import { init } from '@noriginmedia/norigin-spatial-navigation';
 
 interface SpatialNavigationProviderProps {
   children: React.ReactNode;
@@ -9,16 +9,12 @@ interface SpatialNavigationProviderProps {
 
 export function SpatialNavigationProvider({ children }: SpatialNavigationProviderProps) {
   useEffect(() => {
-    // Initialize spatial navigation
     init({
       debug: false,
       visualDebug: false,
+      throttle: 0,
     });
   }, []);
 
-  return (
-    <FocusContext.Provider value="">
-      {children}
-    </FocusContext.Provider>
-  );
+  return <>{children}</>;
 }

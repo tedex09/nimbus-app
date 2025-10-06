@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { FocusContext } from '@noriginmedia/norigin-spatial-navigation';
 import { useAppStore } from '@/stores/useAppStore';
 import { api, Channel } from '@/lib/api';
 import { CategoryMenu } from '@/components/ui/CategoryMenu';
@@ -130,11 +129,10 @@ export default function TVPage() {
       };
 
   return (
-    <FocusContext.Provider value="">
-      <motion.div 
-        className="w-screen h-screen overflow-hidden flex"
-        style={backgroundStyle}
-      >
+    <motion.div
+      className="w-screen h-screen overflow-hidden flex"
+      style={backgroundStyle}
+    >
         {viewMode === 'categories' ? (
           <CategoryMenu
             categories={categories}
@@ -177,7 +175,6 @@ export default function TVPage() {
             </div>
           )}
         </div>
-      </motion.div>
-    </FocusContext.Provider>
+    </motion.div>
   );
 }

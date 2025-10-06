@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { useFocusable } from '@noriginmedia/norigin-spatial-navigation';
+import { useFocusable, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 // @ts-ignore
 import shaka from 'shaka-player';
 import { Play, Pause, Volume2, VolumeX, Maximize2, Minimize2, Tv, CircleAlert as AlertCircle, Loader as Loader2 } from 'lucide-react';
@@ -56,12 +56,13 @@ export function ChannelDetail({
 
   const { ref: containerRef } = useFocusable({
     focusKey: 'channel-detail-container',
-    isFocusBoundary: true
+    isFocusBoundary: false
   });
 
   const { ref: previewRef, focused: previewFocused } = useFocusable({
     focusKey: 'channel-preview',
     onEnterPress: () => setIsFullscreen(prev => !prev),
+    saveLastFocusedChild: false
   });
 
   useEffect(() => {
@@ -458,7 +459,9 @@ function FullscreenPlayer({
 }) {
   const { ref: fullscreenRef } = useFocusable({
     focusKey: 'fullscreen-container',
-    isFocusBoundary: true
+    isFocusBoundary: true,
+    focusBoundaryDirections: ['left', 'right', 'up', 'down'],
+    preferredChildFocusKey: 'fullscreen-play'
   });
 
   const { ref: closeRef, focused: closeFocused } = useFocusable({
@@ -475,6 +478,13 @@ function FullscreenPlayer({
     focusKey: 'fullscreen-mute',
     onEnterPress: onToggleMute
   });
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setFocus('fullscreen-play');
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <motion.div
