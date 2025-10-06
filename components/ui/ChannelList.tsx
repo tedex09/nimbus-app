@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useFocusable, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { Channel } from '@/lib/api';
 import { useAppStore } from '@/stores/useAppStore';
+import { useFocusStore } from '@/stores/useFocusStore';
 import { CircleAlert as AlertCircle, RefreshCw, Tv, Star } from 'lucide-react';
 import SidebarHeader from '@/components/SidebarHeader';
 
@@ -47,6 +48,8 @@ function ChannelItemInner({
   totalChannels,
   isSelected,
 }: ChannelItemProps) {
+  const { setLastFocusedChannelKey } = useFocusStore();
+
   const { ref, focused } = useFocusable({
     focusKey,
     onEnterPress: () => {
@@ -60,6 +63,7 @@ function ChannelItemInner({
     trackChildren: false,
     onFocus: () => {
       if (focusedIndex !== index) onFocus(index);
+      setLastFocusedChannelKey(focusKey);
     },
   });
 

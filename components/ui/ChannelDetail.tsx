@@ -7,6 +7,7 @@ import { useFocusable, setFocus } from '@noriginmedia/norigin-spatial-navigation
 import shaka from 'shaka-player';
 import { Play, Pause, Volume2, VolumeX, Maximize2, Minimize2, Tv, CircleAlert as AlertCircle, Loader as Loader2 } from 'lucide-react';
 import { Channel, api } from '@/lib/api';
+import { useFocusStore } from '@/stores/useFocusStore';
 
 interface ChannelDetailProps {
   channel: Channel | null;
@@ -54,30 +55,49 @@ export function ChannelDetail({
   const [currentTime, setCurrentTime] = useState(new Date());
   const [currentProgramIndex, setCurrentProgramIndex] = useState(0);
 
+  const { lastFocusedProgramKey, lastFocusedChannelKey } = useFocusStore();
+
   const filteredPrograms = useMemo(() => {
     if (selectedDay === 0) return programs.filter(p => new Date(p.endTime) > currentTime);
     return programs;
   }, [programs, currentTime, selectedDay]);
 
-  const preferredFocusKey = useMemo(() => {
-    if (filteredPrograms.length > 0) {
-      return 'program-0';
+  const currentProgramKey = useMemo(() => {
+    const currentProgram = filteredPrograms.find((p) => {
+      const start = new Date(p.startTime);
+      const end = new Date(p.endTime);
+      return currentTime >= start && currentTime <= end;
+    });
+    if (currentProgram) {
+      const idx = filteredPrograms.indexOf(currentProgram);
+      return `program-${idx}`;
     }
-    return 'day-0';
-  }, [filteredPrograms.length]);
+    return 'program-0';
+  }, [filteredPrograms, currentTime]);
 
   const { ref: containerRef } = useFocusable({
     focusKey: 'channel-detail-container',
     isFocusBoundary: true,
     focusBoundaryDirections: ['right'],
-    preferredChildFocusKey: preferredFocusKey,
+    preferredChildFocusKey: 'channel-preview',
     saveLastFocusedChild: true
   });
 
   const { ref: previewRef, focused: previewFocused } = useFocusable({
     focusKey: 'channel-preview',
     onEnterPress: () => setIsFullscreen(prev => !prev),
-    saveLastFocusedChild: false
+    saveLastFocusedChild: false,
+    onArrowPress: (direction) => {
+      if (direction === 'down' && filteredPrograms.length > 0) {
+        setFocus(currentProgramKey);
+        return true;
+      }
+      if (direction === 'left' && lastFocusedChannelKey) {
+        setFocus(lastFocusedChannelKey);
+        return true;
+      }
+      return false;
+    }
   });
 
   useEffect(() => {
@@ -409,7 +429,15 @@ function ProgramCardHorizontal({
   onSelect: () => void;
   focusKey: string;
 }) {
-  const { ref, focused } = useFocusable({ focusKey, onEnterPress: onSelect });
+  const { setLastFocusedProgramKey } = useFocusStore();
+
+  const { ref, focused } = useFocusable({
+    focusKey,
+    onEnterPress: onSelect,
+    onFocus: () => {
+      setLastFocusedProgramKey(focusKey);
+    }
+  });
 
   const time = new Date(program.startTime).toLocaleTimeString('pt-BR', {
     hour: '2-digit',
