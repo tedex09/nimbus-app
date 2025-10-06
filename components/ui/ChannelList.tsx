@@ -222,6 +222,7 @@ export function ChannelList({
   const [selectedChannelId, setSelectedChannelId] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  const hasRestoredFocus = useRef(false);
 
   // número de itens visíveis
   const [visibleCount, setVisibleCount] = useState(0);
@@ -239,13 +240,21 @@ export function ChannelList({
     return 'channel-item-0';
   }, [lastFocusedChannelKey, channels.length]);
 
-  const { ref: containerFocusRef } = useFocusable({
+  const { ref: containerFocusRef, focused: containerFocused } = useFocusable({
     focusKey: 'channel-list-container',
     isFocusBoundary: true,
     focusBoundaryDirections: ['left', 'up', 'down'],
     preferredChildFocusKey: preferredChannelKey,
     saveLastFocusedChild: true,
     trackChildren: true,
+    onFocus: () => {
+      if (!hasRestoredFocus.current && preferredChannelKey) {
+        setTimeout(() => {
+          setFocus(preferredChannelKey);
+          hasRestoredFocus.current = true;
+        }, 50);
+      }
+    },
   });
 
   // calcula quantos itens cabem visíveis
@@ -272,7 +281,14 @@ export function ChannelList({
   useEffect(() => {
     setIsInitialized(false);
     setSelectedChannelId(null);
+    hasRestoredFocus.current = false;
   }, [categoryName]);
+
+  useEffect(() => {
+    if (!containerFocused) {
+      hasRestoredFocus.current = false;
+    }
+  }, [containerFocused]);
 
   const getTranslateY = useCallback(() => {
     if (!containerRef.current || channels.length === 0) return 0;
