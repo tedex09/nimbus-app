@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useFocusable } from '@noriginmedia/norigin-spatial-navigation';
-import * as shaka from 'shaka-player';
+// @ts-ignore
+import shaka from 'shaka-player';
 import { 
   Play, Pause, Volume2, VolumeX, Maximize2, Minimize2, Tv, AlertCircle, Loader2 
 } from 'lucide-react';
@@ -16,6 +17,8 @@ interface ChannelDetailProps {
   username: string;
   password: string;
   className?: string;
+  isFullscreenActive?: boolean;
+  onCloseFullscreen?: () => void;
 }
 
 interface Program {
@@ -30,7 +33,15 @@ interface Program {
   progress?: number;
 }
 
-export function ChannelDetail({ channel, serverCode, username, password, className = '' }: ChannelDetailProps) {
+export function ChannelDetail({
+  channel,
+  serverCode,
+  username,
+  password,
+  className = '',
+  isFullscreenActive = false,
+  onCloseFullscreen
+}: ChannelDetailProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const playerRef = useRef<shaka.Player | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -147,7 +158,7 @@ export function ChannelDetail({ channel, serverCode, username, password, classNa
     const player = new shaka.Player(videoRef.current);
     playerRef.current = player;
 
-    player.addEventListener('error', (event) => {
+    player.addEventListener('error', (event: any) => {
       console.error('Shaka Player error', event);
       setHasError(true);
       setIsLoading(false);
@@ -159,7 +170,7 @@ export function ChannelDetail({ channel, serverCode, username, password, classNa
         videoRef.current!.muted = isMuted;
         videoRef.current!.play().catch(console.error);
       })
-      .catch(err => {
+      .catch((err: any) => {
         console.error('Shaka Player load error', err);
         setHasError(true);
         setIsLoading(false);
@@ -201,20 +212,31 @@ export function ChannelDetail({ channel, serverCode, username, password, classNa
     </div>
   );
 
+  const handleCloseFullscreen = useCallback(() => {
+    setIsFullscreen(false);
+    if (onCloseFullscreen) onCloseFullscreen();
+  }, [onCloseFullscreen]);
+
+  useEffect(() => {
+    if (isFullscreenActive) {
+      setIsFullscreen(true);
+    }
+  }, [isFullscreenActive]);
+
   return (
     <div ref={containerRef} className={`relative ${className}`}>
       {isFullscreen && (
-        <FullscreenPlayer 
-          channel={channel} 
-          videoRef={videoRef} 
-          isPlaying={isPlaying} 
-          isMuted={isMuted} 
-          isLoading={isLoading} 
-          hasError={hasError} 
-          aspectRatio={aspectRatio} 
-          onClose={() => setIsFullscreen(false)} 
-          onTogglePlay={togglePlayPause} 
-          onToggleMute={toggleMute} 
+        <FullscreenPlayer
+          channel={channel}
+          videoRef={videoRef}
+          isPlaying={isPlaying}
+          isMuted={isMuted}
+          isLoading={isLoading}
+          hasError={hasError}
+          aspectRatio={aspectRatio}
+          onClose={handleCloseFullscreen}
+          onTogglePlay={togglePlayPause}
+          onToggleMute={toggleMute}
         />
       )}
 

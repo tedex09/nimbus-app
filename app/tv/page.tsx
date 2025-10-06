@@ -30,6 +30,7 @@ export default function TVPage() {
   const [viewMode, setViewMode] = useState<'categories' | 'channels'>('categories');
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [isFullscreenActive, setIsFullscreenActive] = useState(false);
 
   useEffect(() => {
     initializeApp().then(() => setIsInitialized(true));
@@ -103,6 +104,15 @@ export default function TVPage() {
     setSelectedChannel(channel);
   }, []);
 
+  const handleChannelActivate = useCallback((channel: Channel) => {
+    setSelectedChannel(channel);
+    setIsFullscreenActive(true);
+  }, []);
+
+  const handleCloseFullscreen = useCallback(() => {
+    setIsFullscreenActive(false);
+  }, []);
+
   if (!isInitialized) return <p>Carregando app...</p>;
   if (!session) return <p>Redirecionando...</p>;
 
@@ -143,6 +153,7 @@ export default function TVPage() {
             categoryName={selectedCategory?.category_name || 'Categoria'}
             onBack={handleBackToCategories}
             onChannelSelect={handleChannelSelect}
+            onChannelActivate={handleChannelActivate}
             className="ml-[2vw] mt-[1vw] w-[30vw]"
           />
         )}
@@ -156,6 +167,8 @@ export default function TVPage() {
               username={session.username}
               password={session.password}
               className="h-full"
+              isFullscreenActive={isFullscreenActive}
+              onCloseFullscreen={handleCloseFullscreen}
             />
           ) : (
             <div className="flex flex-col items-center justify-center text-neutral-400 h-full">

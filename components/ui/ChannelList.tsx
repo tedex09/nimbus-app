@@ -15,6 +15,7 @@ interface ChannelListProps {
   categoryName: string;
   onBack: () => void;
   onChannelSelect: (channel: Channel) => void;
+  onChannelActivate?: (channel: Channel) => void;
   className?: string;
 }
 
@@ -22,11 +23,13 @@ interface ChannelItemProps {
   channel: Channel;
   index: number;
   onSelect: (channel: Channel) => void;
+  onActivate?: (channel: Channel) => void;
   focusKey: string;
   focusedIndex: number;
   onFocus: (index: number) => void;
   visibleCount: number;
   totalChannels: number;
+  isFocused: boolean;
 }
 
 /* =========================
@@ -36,15 +39,23 @@ function ChannelItemInner({
   channel,
   index,
   onSelect,
+  onActivate,
   focusKey,
   focusedIndex,
   onFocus,
   visibleCount,
   totalChannels,
+  isFocused,
 }: ChannelItemProps) {
   const { ref, focused } = useFocusable({
     focusKey,
-    onEnterPress: () => onSelect(channel),
+    onEnterPress: () => {
+      if (isFocused && onActivate) {
+        onActivate(channel);
+      } else {
+        onSelect(channel);
+      }
+    },
     saveLastFocusedChild: false,
     trackChildren: false,
     onFocus: () => {
@@ -197,6 +208,7 @@ export function ChannelList({
   categoryName,
   onBack,
   onChannelSelect,
+  onChannelActivate,
   className = '',
 }: ChannelListProps) {
   const { toggleFavoriteChannel, isFavoriteChannel } = useAppStore();
@@ -313,11 +325,13 @@ export function ChannelList({
                       channel={channel}
                       index={index}
                       onSelect={handleChannelSelect}
+                      onActivate={onChannelActivate}
                       focusKey={`channel-item-${index}`}
                       focusedIndex={focusedIndex}
                       onFocus={setFocusedIndex}
                       visibleCount={visibleCount}
                       totalChannels={channels.length}
+                      isFocused={index === focusedIndex}
                     />
 
                     <AnimatePresence>

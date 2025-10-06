@@ -197,8 +197,8 @@ export default function LoginPage() {
                   className={`
                     flex-1 py-4 px-6 rounded-xl text-xl font-medium transition-all duration-200
                     border-2 border-transparent focus:outline-none
-                    ${loginMode === 'device-code' 
-                      ? 'bg-blue-600 text-white' 
+                    ${(loginMode as string) === 'device-code'
+                      ? 'bg-blue-600 text-white'
                       : 'text-gray-400 hover:text-white hover:bg-gray-700/50'}
                     ${focusedElement === 'device-code-mode' ? 'border-white' : ''}
                   `}
