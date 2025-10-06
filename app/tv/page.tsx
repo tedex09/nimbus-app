@@ -74,7 +74,7 @@ export default function TVPage() {
       setChannelsLoading(true);
       setChannelsError(null);
       const { serverCode, username, password } = session;
-      const data = await api.getChannels(serverCode, username, password, category.category_id);
+      const data = await api.getChannels(serverCode, username, password, category.category_id, 'm3u');
       setChannels(data);
       setSelectedCategory(category);
       setViewMode('channels');

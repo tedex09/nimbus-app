@@ -88,6 +88,18 @@ export interface Channel {
   category_id: string;
 }
 
+export interface EpgListing {
+  id: string;
+  title: string;
+  start: string;
+  stop: string;
+  description?: string;
+}
+
+export interface EpgResponse {
+  epg_listings: EpgListing[];
+}
+
 export const api = {
   async authenticate(serverCode: string, username: string, password: string): Promise<Session> {
     
@@ -232,9 +244,9 @@ export const api = {
     }
   },
 
-  async getChannels(serverCode: string, username: string, password: string, categoryId: string): Promise<Channel[]> {
+  async getChannels(serverCode: string, username: string, password: string, categoryId: string, format: string = 'ts'): Promise<Channel[]> {
     try {
-      const response = await fetch(`${API_BASE}/api/channels/categories/${categoryId}?server_code=${serverCode}&username=${username}&password=${password}`, {
+      const response = await fetch(`${API_BASE}/api/channels/categories/${categoryId}?server_code=${serverCode}&username=${username}&password=${password}&format=${format}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -258,6 +270,74 @@ export const api = {
       throw new Error('Erro desconhecido ao buscar canais');
     }
   },
+
+
+
+    async getEpg(serverCode: string, username: string, password: string, channelId: string): Promise<EpgResponse[]> {
+    try {
+
+      const response = await fetch(`${API_BASE}/api/epg/${channelId}?server_code=${serverCode}&username=${username}&password=${password}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`Erro ao carregar EPG: ${response.status} - ${text}`);
+      }
+
+      const data = await response.json();
+
+      if (Array.isArray(data)) return data as EpgResponse[];
+      if (data.epg_listings && Array.isArray(data.epg_listings)) return data.epg_listings as EpgResponse[];
+      return [];
+    } catch (error) {
+      console.error('Falha ao buscar EPG:', error);
+      if (error instanceof Error) throw error;
+      throw new Error('Erro desconhecido ao buscar EPG');
+    }
+  },
+
+  async getEpgByChannel(serverCode: string, username: string, password: string, channelId: string, date?: string, limit?: number): Promise<EpgResponse> {
+    try {
+      const params = new URLSearchParams({
+        server_code: serverCode,
+        username,
+        password,
+      });
+      
+      if (date) params.append('date', date);
+      if (limit) params.append('limit', limit.toString());
+
+      // codificar channelId incluindo pontos
+      const safeChannelId = encodeURIComponent(channelId).replace(/\./g, '%2E');
+      
+      const response = await fetch(`${API_BASE}/api/epg/${safeChannelId}?${params.toString()}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`Erro ao carregar EPG: ${response.status} - ${text}`);
+      }
+
+      const data = await response.json();
+
+      if (Array.isArray(data)) return { epg_listings: data as EpgListing[] };
+      if (data.epg_listings && Array.isArray(data.epg_listings)) return data as EpgResponse;
+      return { epg_listings: [] };
+    } catch (error) {
+      console.error('Falha ao buscar EPG:', error);
+      if (error instanceof Error) throw error;
+      throw new Error('Erro desconhecido ao buscar EPG');
+    }
+  },
+
 
   async requestDeviceCode(tvId: string): Promise<DeviceCodeRequest> {
     // This method is deprecated - use utils/deviceCode.ts instead
