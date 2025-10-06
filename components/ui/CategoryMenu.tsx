@@ -41,6 +41,7 @@ export function CategoryMenu({
   const { ref: focusRootRef } = useFocusable({
     focusKey: 'category-menu',
     isFocusBoundary: true,
+    focusBoundaryDirections: ['left', 'up', 'down'],
   });
 
   useEffect(() => {
