@@ -417,8 +417,8 @@ function ProgramCardHorizontal({
       onClick={onSelect}
       className={`
         flex-shrink-0 w-[30vw] p-[1vw] rounded-[1vw] transition-all
-        ${isCurrent ? 'bg-white/90 text-black' : isSelected ? 'bg-black/50 text-white' : 'bg-black/30 text-white'}
-        ${focused ? 'bg-white !text-black' : ''}
+        ${isCurrent ? 'bg-white/40 text-black' : 'bg-black/30 text-white'}
+        ${focused ? '!bg-white !text-black' : ''}
       `}
       style={{ scrollSnapAlign: 'start' }}
       whileFocus={{ scale: focused ? 1.1 : 1 }}
