@@ -5,9 +5,9 @@ import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/stores/useAppStore';
 import { api, Channel } from '@/lib/api';
-import { CategoryMenu } from '@/components/ui/CategoryMenu';
-import { ChannelList } from '@/components/ui/ChannelList';
-import { ChannelDetail } from '@/components/ui/ChannelDetail';
+import { CategoryMenu } from '@/components/category/CategoryMenu';
+import { ChannelList } from '@/components/channel/ChannelList';
+import { ChannelDetail } from '@/components/channel/ChannelDetail';
 import { Tv } from 'lucide-react';
 
 interface Category {
