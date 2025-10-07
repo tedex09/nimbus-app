@@ -15,16 +15,12 @@ interface ChannelListProps {
   error: string | null;
   categoryName: string;
   onBack: () => void;
-  onChannelSelect: (channel: Channel) => void;
-  onChannelActivate?: (channel: Channel) => void;
   className?: string;
 }
 
 interface ChannelItemProps {
   channel: Channel;
   index: number;
-  onSelect: (channel: Channel) => void;
-  onActivate?: (channel: Channel) => void;
   focusKey: string;
   focusedIndex: number;
   onFocus: (index: number) => void;
@@ -39,8 +35,6 @@ interface ChannelItemProps {
 function ChannelItemInner({
   channel,
   index,
-  onSelect,
-  onActivate,
   focusKey,
   focusedIndex,
   onFocus,
@@ -48,15 +42,36 @@ function ChannelItemInner({
   totalChannels,
   isSelected,
 }: ChannelItemProps) {
-  const { setLastFocusedChannelKey } = useFocusStore();
+  const { setLastFocusedChannelKey, setSelectedChannel, selectedChannel } = useFocusStore();
+  const [pressCount, setPressCount] = useState(0);
+  const pressTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const { ref, focused } = useFocusable({
     focusKey,
     onEnterPress: () => {
-      if (isSelected && onActivate) {
-        onActivate(channel);
-      } else {
-        onSelect(channel);
+      // Lógica de 2 enters
+      const newCount = pressCount + 1;
+      setPressCount(newCount);
+
+      // Limpa timer anterior
+      if (pressTimerRef.current) {
+        clearTimeout(pressTimerRef.current);
+      }
+
+      if (newCount === 1) {
+        // Primeiro Enter: Seleciona canal (abre preview)
+        setSelectedChannel(channel);
+
+        // Reset após 500ms
+        pressTimerRef.current = setTimeout(() => {
+          setPressCount(0);
+        }, 500);
+      } else if (newCount === 2) {
+        // Segundo Enter: Ativa fullscreen (será tratado no ChannelDetail)
+        setPressCount(0);
+        if (pressTimerRef.current) {
+          clearTimeout(pressTimerRef.current);
+        }
       }
     },
     saveLastFocusedChild: false,
@@ -66,6 +81,15 @@ function ChannelItemInner({
       setLastFocusedChannelKey(focusKey);
     },
   });
+
+  // Cleanup do timer
+  useEffect(() => {
+    return () => {
+      if (pressTimerRef.current) {
+        clearTimeout(pressTimerRef.current);
+      }
+    };
+  }, []);
 
   const textRef = useRef<HTMLDivElement>(null);
   const [shouldScroll, setShouldScroll] = useState(false);
@@ -98,45 +122,48 @@ function ChannelItemInner({
       className={`
         relative w-full h-[6vw] flex items-center gap-[1vw] px-[1vw] rounded-[1vw]
         ${focused ? 'scale-[1.04] z-10 shadow-[0_20px_40px_rgba(0,0,0,0.9)] bg-white' : 'bg-black/40'}
+        ${isSelected ? 'border-2 border-blue-500' : ''}
+        transition-all duration-200 cursor-pointer
       `}
-      initial={{ opacity: 0, x: -20 }}
+      style={{ opacity: itemOpacity }}
       animate={{
-        opacity: itemOpacity,
-        x: 0,
         scale: focused ? 1.04 : 1,
+        backgroundColor: focused ? '#ffffff' : 'rgba(0, 0, 0, 0.4)',
       }}
-      transition={{ duration: 0 }}
+      transition={{ duration: 0.2 }}
     >
-      {/* Logo */}
-      <div className="flex items-center justify-center w-[4vw] h-[4vw] min-w-[4vw] rounded-[0.3vw] overflow-hidden bg-neutral-900/10">
-        {channel.stream_icon ? (
+      <div className="w-[4vw] h-[4vw] flex items-center justify-center flex-shrink-0 rounded-[0.5vw] overflow-hidden bg-neutral-700">
+        {channel.stream_icon && (
           <img
             src={channel.stream_icon}
             alt={channel.name}
-            className="w-full h-full object-cover"
             onError={handleImageError}
+            className="w-full h-full object-contain"
           />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-neutral-400">
-            <div className="w-[2.2vw] h-[2.2vw]" />
-          </div>
         )}
+        {!channel.stream_icon && <Tv className="w-[2vw] h-[2vw] text-neutral-500" />}
       </div>
 
-      {/* Info */}
-      <div className="flex-1 min-w-0 overflow-hidden">
-        <div className="flex items-center justify-between gap-[0.5vw] mb-[0.2vw]">
-          <div
-            ref={textRef}
-            className={`
-              text-[1.6vw] font-bold whitespace-nowrap
-              ${focused ? 'text-black' : 'text-white/80'}
-              ${shouldScroll ? 'animate-marquee' : 'truncate'}
-            `}
+      <div className="flex-1 overflow-hidden">
+        <div ref={textRef} className="relative overflow-hidden">
+          <motion.p
+            className={`text-[1.8vw] font-medium ${focused ? 'text-black' : 'text-white'}`}
+            animate={shouldScroll && focused ? { x: [0, -100, 0] } : { x: 0 }}
+            transition={{
+              duration: 8,
+              repeat: Infinity,
+              ease: 'linear',
+            }}
           >
             {channel.name}
-          </div>
+          </motion.p>
         </div>
+
+        {channel.num && (
+          <p className={`text-[1.2vw] ${focused ? 'text-neutral-600' : 'text-neutral-400'}`}>
+            Canal {channel.num}
+          </p>
+        )}
       </div>
     </motion.div>
   );
@@ -145,64 +172,37 @@ function ChannelItemInner({
 const ChannelItem = React.memo(ChannelItemInner);
 
 /* =========================
-   States
+   Loading/Error/Empty States
    ========================= */
 function LoadingState() {
   return (
-    <div className="flex flex-col items-center justify-center py-[4vw] text-neutral-400">
-      <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}>
-        <RefreshCw className="w-[3.2vw] h-[3.2vw] mb-[1vw]" />
-      </motion.div>
-      <p className="text-[1.4vw]">Carregando canais...</p>
+    <div className="flex items-center justify-center p-[4vh] text-white">
+      <RefreshCw className="w-[4vh] h-[4vh] animate-spin mr-[2vh]" />
+      <span className="text-[2vh]">Carregando canais...</span>
     </div>
   );
 }
 
-function ErrorState({ error, onRetry }: { error: string; onRetry?: () => void }) {
-  const { ref, focused } = useFocusable({
-    focusKey: 'error-retry-button',
-    onEnterPress: onRetry,
-  });
-
+function ErrorState({ error }: { error: string }) {
   return (
-    <div className="flex flex-col items-center justify-center py-[4vw] text-center">
-      <AlertCircle className="w-[3vw] h-[3vw] text-red-400 mb-[1vw]" />
-      <p className="text-[1.4vw] text-red-400 mb-[2vw] max-w-[20vw]">{error}</p>
-      {onRetry && (
-        <motion.button
-          ref={ref}
-          className={`
-            px-[2vw] py-[1vw] rounded-[1vw] text-[1.2vw] font-medium
-            relative w-full p-[1vw] rounded-[1vw] transition-all duration-200
-            ${focused ? 'border-white shadow-lg' : 'border-transparent'}
-          `}
-          style={{ zIndex: focused ? 10 : 1 }}
-          onClick={onRetry}
-          whileFocus={{ scale: 1.05 }}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          Tentar Novamente
-        </motion.button>
-      )}
+    <div className="flex flex-col items-center justify-center p-[4vh] text-center">
+      <AlertCircle className="w-[4vh] h-[4vh] text-red-400 mb-[2vh]" />
+      <p className="text-red-400 text-[2vh]">{error}</p>
     </div>
   );
 }
 
 function EmptyState() {
   return (
-    <div className="flex flex-col items-center justify-center py-[4vw] text-neutral-400">
-      <Tv className="w-[3.2vw] h-[3.2vw] mb-[1vw] opacity-50" />
-      <p className="text-[1.4vw]">Nenhum canal encontrado</p>
-      <p className="text-[1vw] text-neutral-500 mt-[0.5vw]">
-        Esta categoria não possui canais disponíveis
-      </p>
+    <div className="flex flex-col items-center justify-center p-[4vh] text-center">
+      <Tv className="w-[4vh] h-[4vh] text-neutral-400 mb-[2vh]" />
+      <p className="text-neutral-400 text-[2vh]">Nenhum canal disponível</p>
     </div>
   );
 }
 
 /* =========================
-   ChannelList principal
+   ChannelList Principal
    ========================= */
 export function ChannelList({
   channels,
@@ -210,35 +210,49 @@ export function ChannelList({
   error,
   categoryName,
   onBack,
-  onChannelSelect,
-  onChannelActivate,
   className = '',
 }: ChannelListProps) {
   const { toggleFavoriteChannel, isFavoriteChannel } = useAppStore();
-  const { lastFocusedChannelKey } = useFocusStore();
+  const { lastFocusedChannelKey, selectedChannel } = useFocusStore();
+
   const [focusedChannelId, setFocusedChannelId] = useState<number | null>(null);
   const [focusedIndex, setFocusedIndex] = useState(0);
-  const [selectedChannelId, setSelectedChannelId] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const hasRestoredFocus = useRef(false);
-
-  // número de itens visíveis
   const [visibleCount, setVisibleCount] = useState(0);
 
   const ITEM_HEIGHT = 6; // vw
   const GAP = 0.5; // vw
 
+  const preferredChannelKey = useMemo(() => {
+    if (lastFocusedChannelKey && channels.length > 0) {
+      const keyIndex = parseInt(lastFocusedChannelKey.split('-').pop() || '0');
+      if (keyIndex < channels.length) {
+        return lastFocusedChannelKey;
+      }
+    }
+    return 'channel-item-0';
+  }, [lastFocusedChannelKey, channels.length]);
 
-  const { ref: containerFocusRef, focused: containerFocused, focusSelf } = useFocusable({
+  const { ref: containerFocusRef, focused: containerFocused } = useFocusable({
     focusKey: 'channel-list-container',
     isFocusBoundary: true,
     focusBoundaryDirections: ['left', 'up', 'down'],
-    /* preferredChildFocusKey: `${lastFocusedChannelKey}`, */
+    preferredChildFocusKey: preferredChannelKey,
     saveLastFocusedChild: true,
+    trackChildren: true,
+    onFocus: () => {
+      if (!hasRestoredFocus.current && preferredChannelKey) {
+        setTimeout(() => {
+          setFocus(preferredChannelKey);
+          hasRestoredFocus.current = true;
+        }, 50);
+      }
+    },
   });
 
-  // calcula quantos itens cabem visíveis
+  // Calcula quantos itens cabem visíveis
   useEffect(() => {
     if (containerRef.current) {
       const containerHeight = containerRef.current.offsetHeight;
@@ -249,19 +263,24 @@ export function ChannelList({
     }
   }, [channels.length]);
 
+  // Inicialização
   useEffect(() => {
     if (!loading && !error && channels.length > 0 && !isInitialized) {
-      focusSelf();
-      setIsInitialized(true);
+      const timer = setTimeout(() => {
+        setFocus(preferredChannelKey);
+        setIsInitialized(true);
+      }, 100);
+      return () => clearTimeout(timer);
     }
-  }, [loading, error, channels.length, isInitialized]);
+  }, [loading, error, channels.length, isInitialized, preferredChannelKey]);
 
+  // Reset ao mudar de categoria
   useEffect(() => {
     setIsInitialized(false);
-    setSelectedChannelId(null);
     hasRestoredFocus.current = false;
   }, [categoryName]);
 
+  // Reset flag ao perder foco
   useEffect(() => {
     if (!containerFocused) {
       hasRestoredFocus.current = false;
@@ -282,14 +301,6 @@ export function ChannelList({
     return -desiredY;
   }, [channels.length, focusedIndex]);
 
-  const handleChannelSelect = useCallback(
-    (channel: Channel) => {
-      setSelectedChannelId(channel.stream_id);
-      onChannelSelect(channel);
-    },
-    [onChannelSelect]
-  );
-
   return (
     <motion.div
       ref={containerFocusRef}
@@ -308,19 +319,19 @@ export function ChannelList({
       <div className="flex-1 overflow-visible">
         <AnimatePresence mode="wait">
           {loading && (
-            <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
+            <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               <LoadingState />
             </motion.div>
           )}
 
           {error && !loading && (
-            <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
+            <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               <ErrorState error={error} />
             </motion.div>
           )}
 
           {!loading && !error && channels.length === 0 && (
-            <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
+            <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               <EmptyState />
             </motion.div>
           )}
@@ -338,14 +349,12 @@ export function ChannelList({
                     <ChannelItem
                       channel={channel}
                       index={index}
-                      onSelect={handleChannelSelect}
-                      onActivate={onChannelActivate}
                       focusKey={`channel-item-${index}`}
                       focusedIndex={focusedIndex}
                       onFocus={setFocusedIndex}
                       visibleCount={visibleCount}
                       totalChannels={channels.length}
-                      isSelected={channel.stream_id === selectedChannelId}
+                      isSelected={selectedChannel?.stream_id === channel.stream_id}
                     />
 
                     <AnimatePresence>
@@ -377,6 +386,9 @@ export function ChannelList({
   );
 }
 
+/* =========================
+   Favorite Button
+   ========================= */
 function FavoriteButton({
   channelId,
   isFavorite,

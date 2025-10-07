@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useFocusable, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { Loader as Loader2, CircleAlert as AlertCircle, Check, Tv } from 'lucide-react';
+import { useFocusStore } from '@/stores/useFocusStore';
 
 interface Category {
   category_id: string;
@@ -17,8 +18,7 @@ interface CategoryMenuProps {
   error: string | null;
   onRetry: () => void;
   onSelect: (id: string, name: string) => void;
-  selectedCategory?: string | null;
-  initialFocus?: boolean; // se true, foca no primeiro item
+  initialFocus?: boolean;
   className?: string;
 }
 
@@ -28,10 +28,10 @@ export function CategoryMenu({
   error,
   onRetry,
   onSelect,
-  selectedCategory,
   initialFocus = true,
   className
 }: CategoryMenuProps) {
+  const { currentCategoryId } = useFocusStore();
   const [focusedIndex, setFocusedIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -42,6 +42,8 @@ export function CategoryMenu({
     focusKey: 'category-menu',
     isFocusBoundary: true,
     focusBoundaryDirections: ['left', 'up', 'down'],
+    saveLastFocusedChild: false,
+    trackChildren: true,
   });
 
   useEffect(() => {
@@ -50,7 +52,7 @@ export function CategoryMenu({
     }
   }, [categories, initialFocus]);
 
-  const getTranslateY = () => {
+  const getTranslateY = useCallback(() => {
     if (!containerRef.current || categories.length === 0) return 0;
     const containerHeight = containerRef.current.offsetHeight;
     const itemHeightPx = (ITEM_HEIGHT / 100) * window.innerWidth;
@@ -61,10 +63,10 @@ export function CategoryMenu({
     const maxTranslate = totalHeight - containerHeight;
     if (desiredY > maxTranslate) desiredY = maxTranslate;
     return -desiredY;
-  };
+  }, [focusedIndex, categories.length]);
 
   return (
-    <div ref={focusRootRef} className={`flex flex-col ${className && className}`}>
+    <div ref={focusRootRef} className={`flex flex-col ${className || ''}`}>
       <div ref={containerRef} className="relative h-full overflow-visible p-[1vw]">
         <AnimatePresence>
           {loading && <LoadingIndicator />}
@@ -84,7 +86,7 @@ export function CategoryMenu({
                   index={i}
                   focusedIndex={focusedIndex}
                   setFocusedIndex={setFocusedIndex}
-                  isSelected={selectedCategory === cat.category_id}
+                  isSelected={currentCategoryId === cat.category_id}
                   onSelect={onSelect}
                 />
               ))}

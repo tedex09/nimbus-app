@@ -7,6 +7,7 @@ import { useFocusable, setFocus } from '@noriginmedia/norigin-spatial-navigation
 import shaka from 'shaka-player';
 import { Play, Pause, Volume2, VolumeX, Maximize2, Minimize2, Tv, CircleAlert as AlertCircle, Loader as Loader2 } from 'lucide-react';
 import { Channel, api } from '@/lib/api';
+import { useFocusStore } from '@/stores/useFocusStore';
 
 interface ChannelDetailProps {
   channel: Channel | null;
@@ -52,12 +53,26 @@ export function ChannelDetail({
   const [selectedDay, setSelectedDay] = useState(0);
   const [programs, setPrograms] = useState<Program[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [currentProgramIndex, setCurrentProgramIndex] = useState(0);
+  const [selectedProgramIndex, setSelectedProgramIndex] = useState(0);
+
+  const { lastFocusedChannelKey, resetForChannelChange } = useFocusStore();
 
   const { ref: containerRef } = useFocusable({
     focusKey: 'channel-detail-container',
-    isFocusBoundary: false
+    isFocusBoundary: true,
+    focusBoundaryDirections: ['right'],
+    saveLastFocusedChild: true,
   });
+
+  // Reset programas ao mudar de canal
+  useEffect(() => {
+    if (channel) {
+      resetForChannelChange();
+      setPrograms([]);
+      setSelectedDay(0);
+      setSelectedProgramIndex(0);
+    }
+  }, [channel?.stream_id, resetForChannelChange]);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
@@ -289,9 +304,9 @@ export function ChannelDetail({
                 <ProgramCardHorizontal
                   key={p.id}
                   program={p}
-                  isSelected={i === currentProgramIndex}
+                  isSelected={i === selectedProgramIndex}
                   isCurrent={p.isLive}
-                  onSelect={() => setCurrentProgramIndex(i)}
+                  onSelect={() => setSelectedProgramIndex(i)}
                   focusKey={`program-${i}`}
                 />
               ))

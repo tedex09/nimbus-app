@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/stores/useAppStore';
+import { useFocusStore } from '@/stores/useFocusStore';
 import { api, Channel } from '@/lib/api';
 import { CategoryMenu } from '@/components/category/CategoryMenu';
 import { ChannelList } from '@/components/channel/ChannelList';
@@ -19,17 +20,21 @@ interface Category {
 export default function TVPage() {
   const router = useRouter();
   const { session, layout, initializeApp } = useAppStore();
+  const {
+    selectedChannel,
+    currentCategoryId,
+    setCurrentCategory,
+    resetForCategoryChange,
+  } = useFocusStore();
+
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [channels, setChannels] = useState<Channel[]>([]);
   const [channelsLoading, setChannelsLoading] = useState(false);
   const [channelsError, setChannelsError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'categories' | 'channels'>('categories');
-  const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
-  const [isFullscreenActive, setIsFullscreenActive] = useState(false);
 
   useEffect(() => {
     initializeApp().then(() => setIsInitialized(true));
@@ -64,53 +69,57 @@ export default function TVPage() {
     fetchCategories();
   }, [session, router, fetchCategories, isInitialized]);
 
-  const fetchChannels = useCallback(async (category: Category) => {
-    if (!session) {
-      setChannelsError('Sessão inválida');
-      return;
-    }
+  const fetchChannels = useCallback(
+    async (category: Category) => {
+      if (!session) {
+        setChannelsError('Sessão inválida');
+        return;
+      }
 
-    try {
-      setChannelsLoading(true);
-      setChannelsError(null);
-      const { serverCode, username, password } = session;
-      const data = await api.getChannels(serverCode, username, password, category.category_id, 'm3u');
-      setChannels(data);
-      setSelectedCategory(category);
-      setViewMode('channels');
-    } catch (err) {
-      setChannelsError(err instanceof Error ? err.message : 'Erro desconhecido');
-    } finally {
-      setChannelsLoading(false);
-    }
-  }, [session]);
+      try {
+        setChannelsLoading(true);
+        setChannelsError(null);
 
-  const handleCategorySelect = useCallback((categoryId: string, categoryName: string) => {
-    const category = categories.find(cat => cat.category_id === categoryId);
-    if (category) {
-      fetchChannels(category);
-    }
-  }, [categories, fetchChannels]);
+        // Reset store ao trocar de categoria
+        resetForCategoryChange();
+
+        const { serverCode, username, password } = session;
+        const data = await api.getChannels(
+          serverCode,
+          username,
+          password,
+          category.category_id,
+          'm3u'
+        );
+
+        setChannels(data);
+        setCurrentCategory(category.category_id, category.category_name);
+        setViewMode('channels');
+      } catch (err) {
+        setChannelsError(err instanceof Error ? err.message : 'Erro desconhecido');
+      } finally {
+        setChannelsLoading(false);
+      }
+    },
+    [session, setCurrentCategory, resetForCategoryChange]
+  );
+
+  const handleCategorySelect = useCallback(
+    (categoryId: string, categoryName: string) => {
+      const category = categories.find((cat) => cat.category_id === categoryId);
+      if (category) {
+        fetchChannels(category);
+      }
+    },
+    [categories, fetchChannels]
+  );
 
   const handleBackToCategories = useCallback(() => {
     setViewMode('categories');
-    setSelectedCategory(null);
     setChannels([]);
     setChannelsError(null);
-  }, []);
-
-  const handleChannelSelect = useCallback((channel: Channel) => {
-    setSelectedChannel(channel);
-  }, []);
-
-  const handleChannelActivate = useCallback((channel: Channel) => {
-    setSelectedChannel(channel);
-    setIsFullscreenActive(true);
-  }, []);
-
-  const handleCloseFullscreen = useCallback(() => {
-    setIsFullscreenActive(false);
-  }, []);
+    resetForCategoryChange();
+  }, [resetForCategoryChange]);
 
   if (!isInitialized) return <p>Carregando app...</p>;
   if (!session) return <p>Redirecionando...</p>;
@@ -122,10 +131,10 @@ export default function TVPage() {
         backgroundSize: 'cover',
         backgroundRepeat: 'no-repeat',
         backgroundPosition: 'center',
-        backgroundAttachment: 'fixed'
+        backgroundAttachment: 'fixed',
       }
     : {
-        backgroundColor: layout?.colors?.background || '#000000'
+        backgroundColor: layout?.colors?.background || '#000000',
       };
 
   return (
@@ -133,48 +142,43 @@ export default function TVPage() {
       className="w-screen h-screen overflow-hidden flex"
       style={backgroundStyle}
     >
-        {viewMode === 'categories' ? (
-          <CategoryMenu
-            categories={categories}
-            loading={loading}
-            error={error}
-            onRetry={fetchCategories}
-            selectedCategory={selectedCategory?.category_id || null}
-            onSelect={handleCategorySelect}
-            className="ml-[2vw] mt-[1vw] w-[30vw]"
+      {viewMode === 'categories' ? (
+        <CategoryMenu
+          categories={categories}
+          loading={loading}
+          error={error}
+          onRetry={fetchCategories}
+          onSelect={handleCategorySelect}
+          className="ml-[2vw] mt-[1vw] w-[30vw]"
+        />
+      ) : (
+        <ChannelList
+          channels={channels}
+          loading={channelsLoading}
+          error={channelsError}
+          categoryName={currentCategoryId || 'Categoria'}
+          onBack={handleBackToCategories}
+          className="ml-[2vw] mt-[1vw] w-[30vw]"
+        />
+      )}
+
+      {/* Área principal - Detalhes do Canal */}
+      <div className="flex-1 p-[2vw]">
+        {viewMode === 'channels' && session ? (
+          <ChannelDetail
+            channel={selectedChannel}
+            serverCode={session.serverCode}
+            username={session.username}
+            password={session.password}
+            className="h-full"
           />
         ) : (
-          <ChannelList
-            channels={channels}
-            loading={channelsLoading}
-            error={channelsError}
-            categoryName={selectedCategory?.category_name || 'Categoria'}
-            onBack={handleBackToCategories}
-            onChannelSelect={handleChannelSelect}
-            onChannelActivate={handleChannelActivate}
-            className="ml-[2vw] mt-[1vw] w-[30vw]"
-          />
+          <div className="flex flex-col items-center justify-center text-neutral-400 h-full">
+            <Tv className="w-[10vh] h-[10vh] mb-4 opacity-30" />
+            <p className="text-[3vh]">Selecione uma categoria</p>
+          </div>
         )}
-
-        {/* Área principal - Detalhes do Canal */}
-        <div className="flex-1 p-[2vw]">
-          {viewMode === 'channels' && session ? (
-            <ChannelDetail
-              channel={selectedChannel}
-              serverCode={session.serverCode}
-              username={session.username}
-              password={session.password}
-              className="h-full"
-              isFullscreenActive={isFullscreenActive}
-              onCloseFullscreen={handleCloseFullscreen}
-            />
-          ) : (
-            <div className="flex flex-col items-center justify-center text-neutral-400 h-full">
-              <Tv className="w-[10vh] h-[10vh] mb-4 opacity-30" />
-              <p className="text-[3vh]">Selecione uma categoria</p>
-            </div>
-          )}
-        </div>
+      </div>
     </motion.div>
   );
 }
