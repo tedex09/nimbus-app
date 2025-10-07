@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useFocusable, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { Channel } from '@/lib/api';
 import { useAppStore } from '@/stores/useAppStore';
+import { useFocusStore } from '@/stores/useFocusStore';
 import { CircleAlert as AlertCircle, RefreshCw, Tv, Star } from 'lucide-react';
 import SidebarHeader from '@/components/SidebarHeader';
 
@@ -47,6 +48,8 @@ function ChannelItemInner({
   totalChannels,
   isSelected,
 }: ChannelItemProps) {
+  const { setLastFocusedChannelKey } = useFocusStore();
+
   const { ref, focused } = useFocusable({
     focusKey,
     onEnterPress: () => {
@@ -60,6 +63,7 @@ function ChannelItemInner({
     trackChildren: false,
     onFocus: () => {
       if (focusedIndex !== index) onFocus(index);
+      setLastFocusedChannelKey(focusKey);
     },
   });
 
@@ -92,10 +96,9 @@ function ChannelItemInner({
     <motion.div
       ref={ref}
       className={`
-        relative w-full h-[6vw] flex items-center gap-[1vw] px-[1vw] rounded-[1vw] cursor-pointer
+        relative w-full h-[6vw] flex items-center gap-[1vw] px-[1vw] rounded-[1vw]
         ${focused ? 'scale-[1.04] z-10 shadow-[0_20px_40px_rgba(0,0,0,0.9)] bg-white' : 'bg-black/40'}
       `}
-      onClick={() => onSelect(channel)}
       initial={{ opacity: 0, x: -20 }}
       animate={{
         opacity: itemOpacity,
@@ -212,11 +215,13 @@ export function ChannelList({
   className = '',
 }: ChannelListProps) {
   const { toggleFavoriteChannel, isFavoriteChannel } = useAppStore();
+  const { lastFocusedChannelKey } = useFocusStore();
   const [focusedChannelId, setFocusedChannelId] = useState<number | null>(null);
   const [focusedIndex, setFocusedIndex] = useState(0);
   const [selectedChannelId, setSelectedChannelId] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  const hasRestoredFocus = useRef(false);
 
   // número de itens visíveis
   const [visibleCount, setVisibleCount] = useState(0);
@@ -224,12 +229,13 @@ export function ChannelList({
   const ITEM_HEIGHT = 6; // vw
   const GAP = 0.5; // vw
 
-  const { ref: containerFocusRef } = useFocusable({
+
+  const { ref: containerFocusRef, focused: containerFocused, focusSelf } = useFocusable({
     focusKey: 'channel-list-container',
     isFocusBoundary: true,
     focusBoundaryDirections: ['left', 'up', 'down'],
+    /* preferredChildFocusKey: `${lastFocusedChannelKey}`, */
     saveLastFocusedChild: true,
-    trackChildren: true,
   });
 
   // calcula quantos itens cabem visíveis
@@ -245,18 +251,22 @@ export function ChannelList({
 
   useEffect(() => {
     if (!loading && !error && channels.length > 0 && !isInitialized) {
-      const timer = setTimeout(() => {
-        setFocus('channel-item-0');
-        setIsInitialized(true);
-      }, 100);
-      return () => clearTimeout(timer);
+      focusSelf();
+      setIsInitialized(true);
     }
   }, [loading, error, channels.length, isInitialized]);
 
   useEffect(() => {
     setIsInitialized(false);
     setSelectedChannelId(null);
+    hasRestoredFocus.current = false;
   }, [categoryName]);
+
+  useEffect(() => {
+    if (!containerFocused) {
+      hasRestoredFocus.current = false;
+    }
+  }, [containerFocused]);
 
   const getTranslateY = useCallback(() => {
     if (!containerRef.current || channels.length === 0) return 0;
@@ -392,7 +402,6 @@ function FavoriteButton({
         ${isFavorite ? 'bg-yellow-500 text-white' : 'bg-gray-700 text-gray-400'}
         ${focused ? 'border-white scale-110 z-30' : 'border-transparent'}
       `}
-      onClick={onToggle}
       whileFocus={{ scale: 1.2 }}
       whileHover={{ scale: 1.1 }}
       whileTap={{ scale: 0.9 }}

@@ -54,30 +54,9 @@ export function ChannelDetail({
   const [currentTime, setCurrentTime] = useState(new Date());
   const [currentProgramIndex, setCurrentProgramIndex] = useState(0);
 
-  const filteredPrograms = useMemo(() => {
-    if (selectedDay === 0) return programs.filter(p => new Date(p.endTime) > currentTime);
-    return programs;
-  }, [programs, currentTime, selectedDay]);
-
-  const preferredFocusKey = useMemo(() => {
-    if (filteredPrograms.length > 0) {
-      return 'program-0';
-    }
-    return 'day-0';
-  }, [filteredPrograms.length]);
-
   const { ref: containerRef } = useFocusable({
     focusKey: 'channel-detail-container',
-    isFocusBoundary: true,
-    focusBoundaryDirections: ['right'],
-    preferredChildFocusKey: preferredFocusKey,
-    saveLastFocusedChild: true
-  });
-
-  const { ref: previewRef, focused: previewFocused } = useFocusable({
-    focusKey: 'channel-preview',
-    onEnterPress: () => setIsFullscreen(prev => !prev),
-    saveLastFocusedChild: false
+    isFocusBoundary: false
   });
 
   useEffect(() => {
@@ -189,6 +168,11 @@ export function ChannelDetail({
     }
   }, [isFullscreenActive]);
 
+  const filteredPrograms = useMemo(() => {
+    if (selectedDay === 0) return programs.filter(p => new Date(p.endTime) > currentTime);
+    return programs;
+  }, [programs, currentTime, selectedDay]);
+
   const dayOptions = useMemo(() => {
     const today = new Date();
     return Array.from({ length: 7 }).map((_, i) => {
@@ -256,11 +240,9 @@ export function ChannelDetail({
 
       <div className="flex justify-center mb-6">
         <motion.div
-          ref={previewRef}
           className={`
             relative w-[45vw] bg-black rounded-[1vw] overflow-hidden border-[0.3vw]
-            transition-all duration-300
-            ${previewFocused ? 'border-white shadow-[0_0_3vw_rgba(255,255,255,0.5)]' : 'border-neutral-700'}
+            transition-all duration-300 border-neutral-700
           `}
           whileFocus={{ scale: 1.02 }}
         >
@@ -275,7 +257,7 @@ export function ChannelDetail({
             {isLoading && <OverlayLoading />}
             {hasError && <OverlayError />}
             <ChannelInfoOverlay channel={channel} />
-            {previewFocused && <PreviewFocusHint />}
+            {/* {previewFocused && <PreviewFocusHint />} */}
           </div>
         </motion.div>
       </div>
@@ -409,7 +391,7 @@ function ProgramCardHorizontal({
   onSelect: () => void;
   focusKey: string;
 }) {
-  const { ref, focused } = useFocusable({ focusKey, onEnterPress: onSelect });
+  const { ref, focused } = useFocusable({ onEnterPress: onSelect });
 
   const time = new Date(program.startTime).toLocaleTimeString('pt-BR', {
     hour: '2-digit',
@@ -467,27 +449,6 @@ function FullscreenPlayer({
   onTogglePlay: () => void;
   onToggleMute: () => void;
 }) {
-  const { ref: fullscreenRef } = useFocusable({
-    focusKey: 'fullscreen-container',
-    isFocusBoundary: true,
-    focusBoundaryDirections: ['left', 'right', 'up', 'down'],
-    preferredChildFocusKey: 'fullscreen-play'
-  });
-
-  const { ref: closeRef, focused: closeFocused } = useFocusable({
-    focusKey: 'fullscreen-close',
-    onEnterPress: onClose
-  });
-
-  const { ref: playRef, focused: playFocused } = useFocusable({
-    focusKey: 'fullscreen-play',
-    onEnterPress: onTogglePlay
-  });
-
-  const { ref: muteRef, focused: muteFocused } = useFocusable({
-    focusKey: 'fullscreen-mute',
-    onEnterPress: onToggleMute
-  });
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -498,7 +459,6 @@ function FullscreenPlayer({
 
   return (
     <motion.div
-      ref={fullscreenRef}
       className="fixed inset-0 bg-black z-50 flex items-center justify-center"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -528,11 +488,10 @@ function FullscreenPlayer({
               </div>
             </div>
             <motion.button
-              ref={closeRef}
               onClick={onClose}
               className={`
                 p-4 rounded-full bg-black/50 text-white border-2 transition-all
-                ${closeFocused ? 'border-white scale-110' : 'border-transparent'}
+               border-transparent
               `}
               whileFocus={{ scale: 1.1 }}
             >
@@ -542,11 +501,10 @@ function FullscreenPlayer({
 
           <div className="absolute bottom-8 left-8 right-8 flex items-center gap-4">
             <motion.button
-              ref={playRef}
               onClick={onTogglePlay}
               className={`
                 p-4 rounded-full bg-black/50 text-white border-2 transition-all
-                ${playFocused ? 'border-white scale-110' : 'border-transparent'}
+               border-transparent
               `}
               whileFocus={{ scale: 1.1 }}
             >
@@ -554,11 +512,10 @@ function FullscreenPlayer({
             </motion.button>
 
             <motion.button
-              ref={muteRef}
               onClick={onToggleMute}
               className={`
                 p-4 rounded-full bg-black/50 text-white border-2 transition-all
-                ${muteFocused ? 'border-white scale-110' : 'border-transparent'}
+                border-transparent
               `}
               whileFocus={{ scale: 1.1 }}
             >
