@@ -28,6 +28,7 @@ export default function TVPage() {
   } = useFocusStore();
 
   const [categories, setCategories] = useState<Category[]>([]);
+  const [categoryName, setCategoryName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [channels, setChannels] = useState<Channel[]>([]);
@@ -109,6 +110,7 @@ export default function TVPage() {
       const category = categories.find((cat) => cat.category_id === categoryId);
       if (category) {
         fetchChannels(category);
+        setCategoryName(category.category_name);
       }
     },
     [categories, fetchChannels]
@@ -156,7 +158,7 @@ export default function TVPage() {
           channels={channels}
           loading={channelsLoading}
           error={channelsError}
-          categoryName={currentCategoryId || 'Categoria'}
+          categoryName={categoryName || 'Categoria'}
           onBack={handleBackToCategories}
           className="ml-[2vw] mt-[1vw] w-[30vw]"
         />

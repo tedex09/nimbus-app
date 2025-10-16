@@ -60,8 +60,17 @@ export function ChannelDetail({
   const { ref: containerRef } = useFocusable({
     focusKey: 'channel-detail-container',
     isFocusBoundary: true,
-    focusBoundaryDirections: ['right'],
+    focusBoundaryDirections: ['left', 'right', 'up', 'down'],
     saveLastFocusedChild: true,
+    preferredChildFocusKey: 'channel-preview',
+  });
+
+
+  const { ref: previewRef, focused: previewFocused } = useFocusable({
+    focusKey: 'channel-preview',
+    // se quiser abrir fullscreen com Enter, trate aqui:
+    // onEnterPress: () => { /* set fullscreen */ },
+    saveLastFocusedChild: false,
   });
 
   // Reset programas ao mudar de canal
@@ -73,6 +82,7 @@ export function ChannelDetail({
       setSelectedProgramIndex(0);
     }
   }, [channel?.stream_id, resetForChannelChange]);
+
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
@@ -255,6 +265,7 @@ export function ChannelDetail({
 
       <div className="flex justify-center mb-6">
         <motion.div
+          ref={previewRef as any}
           className={`
             relative w-[45vw] bg-black rounded-[1vw] overflow-hidden border-[0.3vw]
             transition-all duration-300 border-neutral-700
@@ -272,10 +283,11 @@ export function ChannelDetail({
             {isLoading && <OverlayLoading />}
             {hasError && <OverlayError />}
             <ChannelInfoOverlay channel={channel} />
-            {/* {previewFocused && <PreviewFocusHint />} */}
+            {previewFocused && <PreviewFocusHint />}
           </div>
         </motion.div>
       </div>
+
 
       <div className="flex justify-center mb-6">
         <div className="flex justify-center items-center bg-black/40 w-[45vw] p-[0.6vw] rounded-[2vw] gap-2">
@@ -298,6 +310,7 @@ export function ChannelDetail({
             ref={scrollContainerRef}
             className="flex w-[65vw] gap-2 overflow-x-auto scrollbar-hide pl-1"
             style={{ scrollBehavior: 'smooth', scrollSnapType: 'x mandatory' }}
+            data-sn-nav-skip="true"
           >
             {filteredPrograms.length > 0 ? (
               filteredPrograms.map((p, i) => (
@@ -369,6 +382,7 @@ function DayButton({
   isSelected: boolean;
   onSelect: () => void;
 }) {
+
   const { ref, focused } = useFocusable({
     focusKey: `day-${option.value}`,
     onEnterPress: onSelect,
@@ -406,7 +420,7 @@ function ProgramCardHorizontal({
   onSelect: () => void;
   focusKey: string;
 }) {
-  const { ref, focused } = useFocusable({ onEnterPress: onSelect });
+  const { ref, focused } = useFocusable({ focusKey, onEnterPress: onSelect });
 
   const time = new Date(program.startTime).toLocaleTimeString('pt-BR', {
     hour: '2-digit',
@@ -442,6 +456,7 @@ function ProgramCardHorizontal({
     </motion.div>
   );
 }
+
 
 function FullscreenPlayer({
   channel,

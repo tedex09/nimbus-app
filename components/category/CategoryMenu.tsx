@@ -132,20 +132,14 @@ function CategoryItem({
         ${focused
           ? 'scale-[1.08] z-10 shadow-[0_20px_40px_rgba(0,0,0,0.9)] border-2 border-white bg-white'
           : 'opacity-70 bg-neutral-800'}
-        ${isSelected ? 'border-blue-500' : ''}
       `}
     >
       <span
         className={`text-[1.8vw] font-medium transition-colors ${
-          focused ? 'text-black' : isSelected ? 'text-blue-400' : 'text-neutral-300'
-        }`}
+          focused ? 'text-black' : 'text-neutral-300'}`}
       >
         {category.category_name}
       </span>
-
-      {isSelected && (
-        <Check className="absolute right-[1vw] w-[1.5vw] h-[1.5vw] text-blue-400" />
-      )}
     </motion.div>
   );
 }

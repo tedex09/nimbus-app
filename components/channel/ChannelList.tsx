@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useFocusable, setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { Channel } from '@/lib/api';
@@ -69,9 +69,7 @@ function ChannelItemInner({
       } else if (newCount === 2) {
         // Segundo Enter: Ativa fullscreen (será tratado no ChannelDetail)
         setPressCount(0);
-        if (pressTimerRef.current) {
-          clearTimeout(pressTimerRef.current);
-        }
+        pressTimerRef.current && clearTimeout(pressTimerRef.current);
       }
     },
     saveLastFocusedChild: false,
@@ -114,25 +112,21 @@ function ChannelItemInner({
   const isAbove = index < focusedIndex;
   const startIndexOfVisible = totalChannels - visibleCount;
   const onLastPage = focusedIndex >= startIndexOfVisible;
-  const itemOpacity = focused ? 1 : onLastPage ? 1 : isAbove ? 0.4 : 1;
+  const itemOpacity = focused ? 1 : onLastPage ? 0.7 : isAbove ? 0.4 : 0.7;
 
   return (
     <motion.div
       ref={ref}
+      layout
       className={`
-        relative w-full h-[6vw] flex items-center gap-[1vw] px-[1vw] rounded-[1vw]
-        ${focused ? 'scale-[1.04] z-10 shadow-[0_20px_40px_rgba(0,0,0,0.9)] bg-white' : 'bg-black/40'}
-        ${isSelected ? 'border-2 border-blue-500' : ''}
-        transition-all duration-200 cursor-pointer
+        relative w-full h-[6vw] flex items-center px-[1vw] transition-all duration-200 rounded-[1vw] gap-[1vw]
+        ${focused
+          ? 'scale-[1.08] z-10 shadow-[0_20px_40px_rgba(0,0,0,0.9)] bg-white'
+          : 'opacity-70 bg-neutral-800'}
       `}
       style={{ opacity: itemOpacity }}
-      animate={{
-        scale: focused ? 1.04 : 1,
-        backgroundColor: focused ? '#ffffff' : 'rgba(0, 0, 0, 0.4)',
-      }}
-      transition={{ duration: 0.2 }}
     >
-      <div className="w-[4vw] h-[4vw] flex items-center justify-center flex-shrink-0 rounded-[0.5vw] overflow-hidden bg-neutral-700">
+      <div className="w-[4vw] h-[4vw] flex items-center justify-center flex-shrink-0 rounded-[0.5vw] overflow-hidden">
         {channel.stream_icon && (
           <img
             src={channel.stream_icon}
@@ -141,35 +135,48 @@ function ChannelItemInner({
             className="w-full h-full object-contain"
           />
         )}
-        {!channel.stream_icon && <Tv className="w-[2vw] h-[2vw] text-neutral-500" />}
       </div>
 
       <div className="flex-1 overflow-hidden">
         <div ref={textRef} className="relative overflow-hidden">
           <motion.p
-            className={`text-[1.8vw] font-medium ${focused ? 'text-black' : 'text-white'}`}
-            animate={shouldScroll && focused ? { x: [0, -100, 0] } : { x: 0 }}
-            transition={{
-              duration: 8,
-              repeat: Infinity,
-              ease: 'linear',
-            }}
+            className={`text-[1.8vw] font-medium whitespace-nowrap ${
+              focused ? 'text-black' : 'text-neutral-300'
+            }`}
+            animate={
+              shouldScroll && focused
+                ? { x: ['0%', '-50%', '0%'] } // anima só enquanto focado
+                : { x: '0%' } // volta imediato ao perder foco
+            }
+            transition={
+              shouldScroll && focused
+                ? {
+                    duration: 6,
+                    ease: 'linear',
+                    repeat: Infinity,
+                    repeatDelay: 3,
+                  }
+                : { duration: 0 } // sem delay, reset instantâneo
+            }
+            style={{ willChange: 'transform' }}
           >
             {channel.name}
           </motion.p>
         </div>
 
-        {channel.num && (
+
+
+        {/* {channel.num && (
           <p className={`text-[1.2vw] ${focused ? 'text-neutral-600' : 'text-neutral-400'}`}>
             Canal {channel.num}
           </p>
-        )}
+        )} */}
       </div>
     </motion.div>
   );
 }
 
-const ChannelItem = React.memo(ChannelItemInner);
+const ChannelItem = memo(ChannelItemInner);
 
 /* =========================
    Loading/Error/Empty States
@@ -241,15 +248,7 @@ export function ChannelList({
     focusBoundaryDirections: ['left', 'up', 'down'],
     preferredChildFocusKey: preferredChannelKey,
     saveLastFocusedChild: true,
-    trackChildren: true,
-    onFocus: () => {
-      if (!hasRestoredFocus.current && preferredChannelKey) {
-        setTimeout(() => {
-          setFocus(preferredChannelKey);
-          hasRestoredFocus.current = true;
-        }, 50);
-      }
-    },
+    trackChildren: true
   });
 
   // Calcula quantos itens cabem visíveis
@@ -265,14 +264,13 @@ export function ChannelList({
 
   // Inicialização
   useEffect(() => {
-    if (!loading && !error && channels.length > 0 && !isInitialized) {
-      const timer = setTimeout(() => {
-        setFocus(preferredChannelKey);
-        setIsInitialized(true);
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [loading, error, channels.length, isInitialized, preferredChannelKey]);
+  if (!loading && !error && channels.length > 0 && !isInitialized) {
+    setIsInitialized(true);
+
+    setFocus('channel-list-container');
+  }
+}, [loading, error, channels.length, isInitialized]);
+
 
   // Reset ao mudar de categoria
   useEffect(() => {
@@ -343,6 +341,7 @@ export function ChannelList({
                 animate={{ y: getTranslateY() }}
                 transition={{ type: 'tween', duration: 0.25 }}
                 style={{ willChange: 'transform', overflow: 'visible' }}
+                data-sn-nav-skip="true"
               >
                 {channels.map((channel, index) => (
                   <div key={`${channel.stream_id}-${index}`} className="relative overflow-visible">
