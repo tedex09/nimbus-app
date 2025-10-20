@@ -11,7 +11,7 @@ export function SpatialNavigationProvider({ children }: SpatialNavigationProvide
   useEffect(() => {
     init({
       debug: false,
-      visualDebug: false,
+      visualDebug: true,
       throttle: 0,
     });
   }, []);
