@@ -1,16 +1,11 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useFocusable, setFocus } from '@noriginmedia/norigin-spatial-navigation';
-import { Loader as Loader2, CircleAlert as AlertCircle, Check, Tv } from 'lucide-react';
+import { useFocusable, FocusContext } from '@noriginmedia/norigin-spatial-navigation';
+import { Loader as Loader2, CircleAlert as AlertCircle, Tv } from 'lucide-react';
 import { useFocusStore } from '@/stores/useFocusStore';
-
-interface Category {
-  category_id: string;
-  category_name: string;
-  parent_id?: number;
-}
+import { Category, CategoryItem } from './CategoryItem';
 
 interface CategoryMenuProps {
   categories: Category[];
@@ -35,112 +30,85 @@ export function CategoryMenu({
   const [focusedIndex, setFocusedIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Injeta a categoria de Favoritos no topo
+  const categoriesWithFavorites = useMemo(() => {
+    return [
+      { category_id: 'favorites', category_name: 'Favoritos' },
+      ...categories,
+    ];
+  }, [categories]);
+
   const ITEM_HEIGHT = 6; // em vw
   const GAP = 0.5; // em vw
 
-  const { ref: focusRootRef } = useFocusable({
+  const preferredCategoryKey = useMemo(() => {
+    if (currentCategoryId && categoriesWithFavorites.length > 0) {
+      const foundIndex = categoriesWithFavorites.findIndex(c => c.category_id === currentCategoryId);
+      if (foundIndex >= 0) return `category-${foundIndex}`;
+    }
+    return 'category-0';
+  }, [currentCategoryId, categoriesWithFavorites]);
+
+  const { ref: focusRootRef, focusSelf, focusKey } = useFocusable({
     focusKey: 'category-menu',
     isFocusBoundary: true,
-    focusBoundaryDirections: ['left', 'up', 'down'],
-    saveLastFocusedChild: false,
+    focusBoundaryDirections: ['up', 'down'],
+    saveLastFocusedChild: true,
     trackChildren: true,
+    preferredChildFocusKey: preferredCategoryKey,
   });
 
   useEffect(() => {
-    if (initialFocus && categories.length > 0) {
-      setTimeout(() => setFocus('category-0'), 100);
+    if (initialFocus && categoriesWithFavorites.length > 0) {
+      focusSelf();
     }
-  }, [categories, initialFocus]);
+  }, [categoriesWithFavorites, initialFocus, focusSelf]);
 
   const getTranslateY = useCallback(() => {
-    if (!containerRef.current || categories.length === 0) return 0;
+    if (!containerRef.current || categoriesWithFavorites.length === 0) return 0;
     const containerHeight = containerRef.current.offsetHeight;
     const itemHeightPx = (ITEM_HEIGHT / 100) * window.innerWidth;
     const gapPx = (GAP / 100) * window.innerWidth;
-    const totalHeight = categories.length * itemHeightPx + (categories.length - 1) * gapPx;
+    const totalHeight = categoriesWithFavorites.length * itemHeightPx + (categoriesWithFavorites.length - 1) * gapPx;
 
     let desiredY = focusedIndex * (itemHeightPx + gapPx);
     const maxTranslate = totalHeight - containerHeight;
     if (desiredY > maxTranslate) desiredY = maxTranslate;
     return -desiredY;
-  }, [focusedIndex, categories.length]);
+  }, [focusedIndex, categoriesWithFavorites.length]);
 
   return (
-    <div ref={focusRootRef} className={`flex flex-col ${className || ''}`}>
-      <div ref={containerRef} className="relative h-full overflow-visible p-[1vw]">
-        <AnimatePresence>
-          {loading && <LoadingIndicator />}
-          {error && <ErrorIndicator error={error} onRetry={onRetry} />}
-          {!loading && !error && categories.length === 0 && <EmptyState />}
-          {!loading && !error && categories.length > 0 && (
-            <motion.div
-              className="absolute top-0 left-0 w-full space-y-[0.5vw]"
-              animate={{ y: getTranslateY() }}
-              transition={{ type: 'tween', duration: 0.25 }}
-              style={{ willChange: 'transform' }}
-            >
-              {categories.map((cat, i) => (
-                <CategoryItem
-                  key={cat.category_id}
-                  category={cat}
-                  index={i}
-                  focusedIndex={focusedIndex}
-                  setFocusedIndex={setFocusedIndex}
-                  isSelected={currentCategoryId === cat.category_id}
-                  onSelect={onSelect}
-                />
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
+    <FocusContext.Provider value={focusKey}>
+      <div ref={focusRootRef} className={`flex flex-col ${className || ''}`}>
+        <div ref={containerRef} className="relative h-full overflow-visible p-[1vw]">
+          <AnimatePresence>
+            {loading && <LoadingIndicator />}
+            {error && <ErrorIndicator error={error} onRetry={onRetry} />}
+            {!loading && !error && categoriesWithFavorites.length === 0 && <EmptyState />}
+            {!loading && !error && categoriesWithFavorites.length > 0 && (
+              <motion.div
+                className="absolute top-0 left-0 w-full space-y-[0.5vw]"
+                animate={{ y: getTranslateY() }}
+                transition={{ type: 'tween', duration: 0.25 }}
+                style={{ willChange: 'transform' }}
+              >
+                {categoriesWithFavorites.map((cat, i) => (
+                  <CategoryItem
+                    key={cat.category_id}
+                    category={cat}
+                    index={i}
+                    focusedIndex={focusedIndex}
+                    setFocusedIndex={setFocusedIndex}
+                    isSelected={currentCategoryId === cat.category_id}
+                    onSelect={onSelect}
+                  />
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
-    </div>
-  );
-}
-
-/* =========================
-   Subcomponents
-   ========================= */
-
-function CategoryItem({
-  category,
-  index,
-  focusedIndex,
-  setFocusedIndex,
-  isSelected,
-  onSelect,
-}: {
-  category: Category;
-  index: number;
-  focusedIndex: number;
-  setFocusedIndex: (i: number) => void;
-  isSelected: boolean;
-  onSelect: (id: string, name: string) => void;
-}) {
-  const { ref, focused } = useFocusable({
-    focusKey: `category-${index}`,
-    onEnterPress: () => onSelect(category.category_id, category.category_name),
-    onFocus: () => setFocusedIndex(index),
-  });
-
-  return (
-    <motion.div
-      ref={ref}
-      layout
-      className={`
-        relative w-full h-[6vw] flex items-center px-[1vw] transition-all duration-200 rounded-[1vw]
-        ${focused
-          ? 'scale-[1.08] z-10 shadow-[0_20px_40px_rgba(0,0,0,0.9)] border-2 border-white bg-white'
-          : 'opacity-70 bg-neutral-800'}
-      `}
-    >
-      <span
-        className={`text-[1.8vw] font-medium transition-colors ${
-          focused ? 'text-black' : 'text-neutral-300'}`}
-      >
-        {category.category_name}
-      </span>
-    </motion.div>
+    </FocusContext.Provider>
   );
 }
 

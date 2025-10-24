@@ -14,6 +14,7 @@ export default function SidebarHeader({
 }: SidebarHeaderProps) {
   const { ref, focused } = useFocusable({
     focusKey: "sidebar-header",
+    focusable: false,
     onEnterPress: onBack,
   });
 
@@ -32,19 +33,19 @@ export default function SidebarHeader({
       transition={{ duration: 0.25 }}
     >
       
-      <div className="flex items-center justify-center w-[4vw] h-[4vw] min-w-[4vw] p-[1vw] overflow-hidden">
+      {/* <div className="flex items-center justify-center w-[4vw] h-[4vw] min-w-[4vw] p-[1vw] overflow-hidden">
         <img
           src="/icons/back.png"
           className="w-full h-full object-contain"
           alt="Voltar"  
         />
-      </div>
+      </div> */}
 
       {/* Texto */}
       <div
-        className='flex-1 text-black text-[1.6vw] font-semibold whitespace-nowrap truncate px-[1vw]'
+        className='flex-1 text-black text-[1.7vw] font-semibold whitespace-nowrap truncate px-[1vw]'
       >
-        {title || ""}
+        {title || "Categoria"}
       </div>
     </motion.div>
   );

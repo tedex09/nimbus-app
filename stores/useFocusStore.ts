@@ -1,96 +1,124 @@
 import { create } from 'zustand';
 import type { Channel } from '@/lib/api';
+import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
+
+type FullscreenSource = 'preview' | 'item' | null;
 
 interface FocusState {
-  // Estados de foco
+  // Foco
   lastFocusedChannelKey: string | null;
   lastFocusedProgramKey: string | null;
 
-  // Estados de seleção e visualização
+  // Seleção e detalhe
   selectedChannel: Channel | null;
   isChannelDetailVisible: boolean;
 
-  // Estado de categoria atual
+  // Fullscreen
+  isFullscreen: boolean;
+  fullscreenSource: FullscreenSource;
+  fullscreenItemKey: string | null;
+
+  openFullscreen: (channel: Channel, opts: { source: FullscreenSource; focusKey?: string }) => void;
+  closeFullscreen: () => void;
+
+  // Categoria
   currentCategoryId: string | null;
   currentCategoryName: string | null;
 
-  // Ações de foco
+  // Actions
   setLastFocusedChannelKey: (key: string) => void;
   setLastFocusedProgramKey: (key: string) => void;
-
-  // Ações de seleção
   setSelectedChannel: (channel: Channel | null) => void;
   setIsChannelDetailVisible: (visible: boolean) => void;
-
-  // Ações de categoria
   setCurrentCategory: (id: string, name: string) => void;
 
-  // Reset completo ao trocar de categoria
+  // Reset
   resetForCategoryChange: () => void;
-
-  // Reset completo ao trocar de canal
   resetForChannelChange: () => void;
-
-  // Reset geral
   clearAll: () => void;
 }
 
-export const useFocusStore = create<FocusState>((set) => ({
-  // Estados iniciais
+export const useFocusStore = create<FocusState>((set, get) => ({
+  // Estado inicial
   lastFocusedChannelKey: null,
   lastFocusedProgramKey: null,
   selectedChannel: null,
   isChannelDetailVisible: false,
+
+  isFullscreen: false,
+  fullscreenSource: null,
+  fullscreenItemKey: null,
+
   currentCategoryId: null,
   currentCategoryName: null,
 
-  // Ações de foco
-  setLastFocusedChannelKey: (key: string) =>
-    set({ lastFocusedChannelKey: key }),
+  // Ações foco
+  setLastFocusedChannelKey: (key) => set({ lastFocusedChannelKey: key }),
+  setLastFocusedProgramKey: (key) => set({ lastFocusedProgramKey: key }),
 
-  setLastFocusedProgramKey: (key: string) =>
-    set({ lastFocusedProgramKey: key }),
-
-  // Ações de seleção
-  setSelectedChannel: (channel: Channel | null) =>
+  // Seleção
+  setSelectedChannel: (channel) =>
     set({
       selectedChannel: channel,
       isChannelDetailVisible: channel !== null,
     }),
 
-  setIsChannelDetailVisible: (visible: boolean) =>
-    set({ isChannelDetailVisible: visible }),
+  setIsChannelDetailVisible: (visible) => set({ isChannelDetailVisible: visible }),
 
-  // Ações de categoria
-  setCurrentCategory: (id: string, name: string) =>
-    set({
-      currentCategoryId: id,
-      currentCategoryName: name,
-    }),
+  setCurrentCategory: (id, name) =>
+    set({ currentCategoryId: id, currentCategoryName: name }),
 
-  // Reset ao trocar de categoria
+  // Reset
   resetForCategoryChange: () =>
     set({
       lastFocusedChannelKey: null,
       lastFocusedProgramKey: null,
       selectedChannel: null,
       isChannelDetailVisible: false,
+      isFullscreen: false,
+      fullscreenSource: null,
+      fullscreenItemKey: null,
     }),
 
-  // Reset ao trocar de canal (mantém foco do canal, reseta programa)
   resetForChannelChange: () =>
-    set({
-      lastFocusedProgramKey: null,
-    }),
+    set({ lastFocusedProgramKey: null }),
 
-  // Reset geral
   clearAll: () =>
     set({
       lastFocusedChannelKey: null,
       lastFocusedProgramKey: null,
       selectedChannel: null,
       isChannelDetailVisible: false,
+      isFullscreen: false,
+      fullscreenSource: null,
+      fullscreenItemKey: null,
       currentCategoryId: null,
       currentCategoryName: null,
     }),
+
+  // Fullscreen
+  openFullscreen: (channel, { source, focusKey }) =>
+    set({
+      selectedChannel: channel,
+      isChannelDetailVisible: true,
+      isFullscreen: true,
+      fullscreenSource: source,
+      fullscreenItemKey: source === 'item' ? focusKey ?? null : null,
+    }),
+
+  closeFullscreen: () => {
+    const { fullscreenSource, fullscreenItemKey } = get();
+
+    if (fullscreenSource === 'item' && fullscreenItemKey) {
+      setFocus(fullscreenItemKey);
+    } else if (fullscreenSource === 'preview') {
+      setFocus('channel-preview'); // 🔑 garante que preview recebe foco
+    }
+
+    set({
+      isFullscreen: false,
+      fullscreenSource: null,
+      fullscreenItemKey: null,
+    });
+  },
 }));

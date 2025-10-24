@@ -3,6 +3,7 @@
 import './globals.css';
 import { useEffect } from 'react';
 import { SpatialNavigationProvider } from '@/components/SpatialNavigationProvider';
+import { ShakaProvider } from '@/providers/ShakaProvider';
 
 export default function RootLayout({
   children,
@@ -32,9 +33,11 @@ export default function RootLayout({
       </head>
       <body>
         <SpatialNavigationProvider>
-          <div className="min-h-screen bg-[#0f0e1a] text-white">
-            {children}
-          </div>
+          <ShakaProvider>
+            <div className="min-h-screen bg-[#0f0e1a] text-white">
+              {children}
+            </div>
+          </ShakaProvider>
         </SpatialNavigationProvider>
       </body>
     </html>
